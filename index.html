@@ -39,8 +39,8 @@
   <script type="importmap">
 {
   "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/client": "https://aistudiocdn.com/react-dom@^19.2.0/client"
+    "react": "https://aistudiocdn.com/react@^18.2.0",
+    "react-dom/client": "https://aistudiocdn.com/react-dom@^18.2.0/client"
   }
 }
 </script>
@@ -441,7 +441,7 @@ const BookView = ({ hits, currentIndex, onNavigate, onClose, onCategoryClick }) 
     useEffect(() => {
         fetchFullSharh(currentHit);
         document.querySelector('.book-view-container')?.scrollTo(0, 0);
-    }, [currentIndex]);
+    }, [currentIndex, hits]);
 
     const getTitle = (s) => {
         const pageOrNum = s.page_or_number ?? s.page ?? s.number;
@@ -451,25 +451,37 @@ const BookView = ({ hits, currentIndex, onNavigate, onClose, onCategoryClick }) 
     
     const renderCategories = (categories) => {
         if (!categories) return null;
-        try {
-            const cleaned = categories.replace(/^\[|\]$/g, '').trim();
-            if (!cleaned) return null;
-            const items = cleaned.split(',').map(item => item.trim().replace(/^"|"$/g, '')).filter(Boolean);
-            
-            if (items.length === 0) return null;
 
-            return React.createElement('div', { className: "py-2 px-3 flex flex-wrap gap-x-4 bg-gray-50 even:bg-white border-b" },
-                React.createElement('dt', { className: "w-full sm:w-32 font-semibold text-gray-700 flex-shrink-0" }, "التصنيفات"),
+        // Handle both string and array data types from the API
+        const categoriesStr = Array.isArray(categories) ? categories.join(',') : String(categories);
+
+        try {
+            const cleaned = categoriesStr.replace(/^\[|\]$/g, '').trim();
+            if (!cleaned) return null;
+
+            const allCategoryParts = [...new Set(cleaned
+                .split(',')
+                .map(item => item.trim().replace(/^"|"$/g, ''))
+                .filter(Boolean)
+            )];
+
+            if (allCategoryParts.length === 0) return null;
+
+            return React.createElement('div', { className: "py-2 px-3 flex flex-wrap items-start gap-x-4 bg-gray-50 even:bg-white border-b" },
+                React.createElement('dt', { className: "w-full sm:w-32 font-semibold text-gray-700 flex-shrink-0 pt-1" }, "التصنيفات"),
                 React.createElement('dd', { className: "text-gray-800 flex-1 flex flex-wrap gap-2" },
-                    items.map((item, index) => React.createElement('button', {
-                         key: index,
-                         onClick: () => onCategoryClick(item),
-                         className: "inline-block bg-brown-100 text-brown-800 rounded-full px-3 py-1 text-sm font-semibold hover:bg-brown-200 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brown-500"
-                    }, item))
+                    allCategoryParts.map((part, index) => 
+                        React.createElement('button', {
+                            key: index,
+                            onClick: () => onCategoryClick(part),
+                            className: "bg-brown-100 text-brown-800 px-3 py-1 rounded-full text-sm font-medium hover:bg-brown-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brown-500 transition"
+                        }, part)
+                    )
                 )
             );
         } catch (e) {
-            return React.createElement(DetailRow, { label: "التصنيفات", value: categories });
+            // Fallback in case of any unexpected error during parsing
+            return React.createElement(DetailRow, { label: "التصنيفات", value: categoriesStr });
         }
     };
     
@@ -592,14 +604,26 @@ const App = () => {
     };
     
     const handleCategorySearch = (category) => {
+        const params = {
+            query: category,
+            type: SearchType.AND,
+            century: undefined,
+        };
+        setCurrentQuery(category);
+        setCurrentPage(1);
+        setCurrentSearchParams(params);
+        fetchResults(params, 1);
         handleCloseBookView();
-        setTimeout(() => {
-            handleSearch({ query: category, type: SearchType.PHRASE, century: undefined });
-        }, 100);
     };
 
     if (selectedHit && selectedHitIndex !== null && searchResults && searchResults.hits) {
-        return React.createElement(BookView, { hits: searchResults.hits, currentIndex: selectedHitIndex, onNavigate: handleBookViewNavigation, onClose: handleCloseBookView, onCategoryClick: handleCategorySearch });
+        return React.createElement(BookView, { 
+            hits: searchResults.hits, 
+            currentIndex: selectedHitIndex, 
+            onNavigate: handleBookViewNavigation, 
+            onClose: handleCloseBookView,
+            onCategoryClick: handleCategorySearch 
+        });
     }
 
     return (
