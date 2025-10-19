@@ -104,20 +104,18 @@ const CloseIcon = ({ className = "w-6 h-6" }) => (
 const ALGOLIA_APP_ID = '3XD12I7386';
 const ALGOLIA_SEARCH_API_KEY = '89e8e132a05fdb02275f64dec8d14d05';
 const ALGOLIA_INDEX_NAME = 'hadith_data';
-const ALGOLIA_SHARH_INDEX_NAME = 'hadith_sharh';
 
 const searchClient = algoliasearch(ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY);
-const sharhIndex = searchClient.initIndex(ALGOLIA_SHARH_INDEX_NAME);
 
 const search = async (params, from, size) => {
     const { query, type, century } = params;
     const page = Math.floor(from / size);
-    const hitsPerPage = Math.ceil(size / 2);
+    const hitsPerPage = size; 
 
     const searchOptions = {
         page: page,
         hitsPerPage: hitsPerPage,
-        attributesToHighlight: ['hadith', 'sharh', 'source'],
+        attributesToHighlight: ['hadith', 'sharh', 'source', 'categories'],
         highlightPreTag: "<mark class='bg-yellow-300'>",
         highlightPostTag: "</mark>",
     };
@@ -141,7 +139,6 @@ const search = async (params, from, size) => {
             searchOptions.advancedSyntax = true;
             break;
         case SearchType.RANGE:
-            break;
         case SearchType.MULTI_FIELD:
         default:
             searchOptions.removeWordsIfNoResults = 'lastWords';
@@ -151,69 +148,26 @@ const search = async (params, from, size) => {
     if (filters.length > 0) searchOptions.filters = filters.join(' AND ');
     
     const queries = [
-        { indexName: ALGOLIA_INDEX_NAME, query: searchQuery, params: { ...searchOptions } },
-        { indexName: ALGOLIA_SHARH_INDEX_NAME, query: searchQuery, params: { ...searchOptions } }
+        { indexName: ALGOLIA_INDEX_NAME, query: searchQuery, params: { ...searchOptions } }
     ];
 
-    const { results } = await searchClient.multipleQueries(queries);
-    const hadithResults = results[0];
-    const sharhResults = results[1];
-
-    const uniqueHits = {};
-    hadithResults.hits.forEach(hit => uniqueHits[hit.objectID] = hit);
-    sharhResults.hits.forEach(hit => {
-        const id = hit.original_id || hit.objectID;
-        if (!uniqueHits[id]) uniqueHits[id] = hit;
-    });
-
-    const combinedHits = Object.values(uniqueHits);
-
-    return {
-        total: { value: hadithResults.nbHits + sharhResults.nbHits, relation: 'eq' },
-        hits: combinedHits.map(hit => ({ ...hit, _id: hit.objectID })), 
-        suggest: null,
-    };
-};
-
-const searchInBook = async (params) => {
-    const { query, type, sourceToFilterBy } = params;
-    const searchOptions = {
-        page: 0,
-        hitsPerPage: 25,
-        attributesToHighlight: ['hadith', 'sharh', 'source'],
-        highlightPreTag: "<mark class='bg-yellow-300'>",
-        highlightPostTag: "</mark>",
-        filters: `source:"${sourceToFilterBy}"`
-    };
-
-    let searchQuery = query;
-     switch (type) {
-        case SearchType.AND: searchOptions.removeWordsIfNoResults = 'none'; break;
-        case SearchType.PHRASE: searchQuery = `"${query}"`; searchOptions.advancedSyntax = true; break;
-        case SearchType.BOOL: searchOptions.advancedSyntax = true; break;
-        default: searchOptions.removeWordsIfNoResults = 'lastWords'; break;
+    const response = await searchClient.multipleQueries(queries);
+    
+    if (!response || !Array.isArray(response.results) || response.results.length < 1) {
+        throw new Error("API returned an invalid or incomplete response.");
     }
 
-    const queries = [
-        { indexName: ALGOLIA_INDEX_NAME, query: searchQuery, params: { ...searchOptions } },
-        { indexName: ALGOLIA_SHARH_INDEX_NAME, query: searchQuery, params: { ...searchOptions } }
-    ];
+    const hadithResults = response.results[0];
     
-    const { results } = await searchClient.multipleQueries(queries);
-    const hadithResults = results[0];
-    const sharhResults = results[1];
-    
-    const uniqueHits = {};
-    hadithResults.hits.forEach(hit => uniqueHits[hit.objectID] = hit);
-    sharhResults.hits.forEach(hit => {
-        const id = hit.original_id || hit.objectID;
-        if (!uniqueHits[id]) uniqueHits[id] = hit;
-    });
+    if (!Array.isArray(hadithResults.hits)) {
+        throw new Error(`Search failed: ${hadithResults.message || 'Unknown Algolia error.'}`);
+    }
 
-    const combinedHits = Object.values(uniqueHits);
+    const combinedHits = hadithResults.hits;
+
     return {
-        total: { value: hadithResults.nbHits + sharhResults.nbHits, relation: 'eq' },
-        hits: combinedHits.map(hit => ({ ...hit, _id: hit.objectID })),
+        total: { value: hadithResults.nbHits, relation: 'eq' },
+        hits: combinedHits.map(hit => ({ ...hit, _id: hit.objectID })), 
         suggest: null,
     };
 };
@@ -228,7 +182,7 @@ const searchTypeDescriptions = {
   [SearchType.RANGE]: "لتحديد نطاق البحث حسب القرن. أدخل القرن المطلوب في الحقل المخصص.",
 };
 
-const SearchBar = ({ onSearch, isLoading, isBookView = false, query, onQueryChange }) => {
+const SearchBar = ({ onSearch, isLoading, query, onQueryChange }) => {
   const [searchType, setSearchType] = useState(SearchType.MULTI_FIELD);
   const [century, setCentury] = useState('');
   const handleSubmit = (e) => {
@@ -239,7 +193,7 @@ const SearchBar = ({ onSearch, isLoading, isBookView = false, query, onQueryChan
   };
   const description = useMemo(() => searchTypeDescriptions[searchType], [searchType]);
   return (
-    React.createElement('div', { className: `w-full ${isBookView ? 'bg-gray-100 p-2' : 'max-w-3xl mx-auto p-4'}` },
+    React.createElement('div', { className: 'w-full max-w-3xl mx-auto p-4' },
       React.createElement('form', { onSubmit: handleSubmit },
         React.createElement('div', { className: "flex flex-col md:flex-row gap-2" },
           React.createElement('div', { className: "relative flex-grow" },
@@ -339,18 +293,47 @@ const Pagination = ({ currentPage, totalResults, pageSize, onPageChange, isLoadi
 
 // --- 6. نتائج البحث (components/SearchResults.tsx) ---
 const ResultItem = ({ hit, onResultClick }) => {
-    const getTitle = () => {
-        const pageOrNum = hit.page_or_number || 'بدون رقم';
-        if (hit._highlightResult?.source?.value) {
-            return `${hit._highlightResult.source.value} - ${pageOrNum}`;
+    const { useState } = React;
+    const [sharhState, setSharhState] = useState({
+        text: null,
+        isLoading: false,
+        error: null,
+        isVisible: false,
+    });
+
+    const handleFetchSharh = async (e) => {
+        e.stopPropagation(); 
+
+        if (sharhState.isVisible) {
+            setSharhState(prev => ({ ...prev, isVisible: false }));
+            return;
         }
-        return `${hit.source || 'مصدر غير معروف'} - ${pageOrNum}`;
+
+        setSharhState({ isVisible: true, isLoading: true, text: null, error: null });
+
+        try {
+            const response = await fetch(hit.sharh_url);
+            if (!response.ok) {
+                throw new Error('فشل جلب الملف');
+            }
+            const text = await response.text();
+            setSharhState({ isVisible: true, isLoading: false, text, error: null });
+        } catch (err) {
+            setSharhState({ isVisible: true, isLoading: false, text: null, error: err.message });
+        }
     };
+
+    const getTitle = () => {
+        const pageOrNum = hit.page_or_number ?? hit.page ?? hit.number;
+        const sourceText = (hit._highlightResult?.source?.value || hit.source || 'مصدر غير معروف');
+        return pageOrNum ? `${sourceText} - ${pageOrNum}` : sourceText;
+    };
+    
     const getSnippet = () => {
         const h = hit._highlightResult;
         if (h) {
             if (h.hadith?.value) return h.hadith.value;
-            if (h.sharh?.value) return `... ${h.sharh.value} ...`;
+            if (h.sharh?.value) return `... ${h.sharh.value} ...`; 
         }
         const text = hit.hadith || hit.sharh || '';
         return text.length > 300 ? text.substring(0, 300) + '...' : text;
@@ -365,15 +348,32 @@ const ResultItem = ({ hit, onResultClick }) => {
         if (s.rawi) parts.push(`الراوي: ${s.rawi}`);
         return parts.join(' | ');
     }
+    
+    const sharhButton = hit.sharh_url ? React.createElement('button', {
+        onClick: handleFetchSharh,
+        className: "mt-4 mr-auto px-4 py-1 text-sm bg-brown-100 text-brown-800 rounded-md hover:bg-brown-200 transition"
+    }, sharhState.isVisible ? 'إخفاء الشرح' : 'عرض الشرح') : null;
+
+    const sharhContainer = sharhState.isVisible ? React.createElement('div', {
+        className: "mt-4 p-3 border-l-4 border-brown-500 bg-beige"
+    },
+        sharhState.isLoading ? React.createElement('p', null, 'جارٍ تحميل الشرح...')
+        : sharhState.error ? React.createElement('p', { className: "text-red-600" }, `❌ ${sharhState.error}`)
+        : React.createElement('p', { className: "whitespace-pre-wrap" }, sharhState.text)
+    ) : null;
+
     return (
-        React.createElement('div', { className: "p-4 border rounded-lg shadow-sm bg-white hover:bg-yellow-50 hover:shadow-md transition cursor-pointer", onClick: () => onResultClick(hit) },
-            React.createElement('h3', { className: "text-xl font-bold text-brown-800 font-serif", dangerouslySetInnerHTML: { __html: getTitle() }}),
-            React.createElement('div', { className: "text-gray-800 font-serif leading-relaxed mt-2", dangerouslySetInnerHTML: { __html: getSnippet() }}),
-            React.createElement('div', { className: "text-sm text-gray-500 mt-3" }, React.createElement('span', null, getDetails(hit)))
+        React.createElement('div', { className: "p-4 border rounded-lg shadow-sm bg-white hover:bg-yellow-50 hover:shadow-md transition" },
+            React.createElement('div', { className: "cursor-pointer", onClick: () => onResultClick(hit) },
+                React.createElement('h3', { className: "text-xl font-bold text-brown-800 font-serif", dangerouslySetInnerHTML: { __html: getTitle() }}),
+                React.createElement('div', { className: "text-gray-800 font-serif leading-relaxed mt-2", dangerouslySetInnerHTML: { __html: getSnippet() }}),
+                React.createElement('div', { className: "text-sm text-gray-500 mt-3" }, React.createElement('span', null, getDetails(hit)))
+            ),
+            React.createElement('div', { className: "flex" }, sharhButton),
+            sharhContainer
         )
     );
 };
-
 const SearchResults = ({ results, isLoading, error, onResultClick }) => {
     if (isLoading) return React.createElement('div', { className: "text-center p-10" },
         React.createElement('div', { className: "w-8 h-8 border-4 border-brown-600 border-t-transparent rounded-full animate-spin mx-auto" }),
@@ -408,76 +408,46 @@ const DetailRow = ({ label, value }) => {
     );
 };
 
-const BookView = ({ hits, currentIndex, onNavigate, onClose }) => {
+const BookView = ({ hits, currentIndex, onNavigate, onClose, onCategoryClick }) => {
     const currentHit = hits[currentIndex];
     const [fontSize, setFontSize] = useState(18);
-    const [inBookQuery, setInBookQuery] = useState('');
-    const [inBookSearchResults, setInBookSearchResults] = useState(null);
-    const [isSearchingInBook, setIsSearchingInBook] = useState(false);
-    const [inBookError, setInBookError] = useState(null);
     const [fullSharh, setFullSharh] = useState(null); 
     const [isSharhLoading, setIsSharhLoading] = useState(false);
     const source = currentHit;
-
-    const handleInBookSearch = async (params) => {
-        setInBookQuery(params.query);
-        setIsSearchingInBook(true);
-        setInBookError(null);
-        setInBookSearchResults(null);
-        try {
-            const results = await searchInBook({ ...params, sourceToFilterBy: source.source });
-            setInBookSearchResults(results);
-        } catch (error) {
-            setInBookError(error instanceof Error ? error.message : 'An unknown error occurred.');
-        } finally {
-            setIsSearchingInBook(false);
-        }
-    };
     
     const fetchFullSharh = async (hit) => {
         setIsSharhLoading(true);
         setFullSharh(null);
-        if (hit.sharh && !hit.original_id) {
-            setFullSharh(hit.sharh);
-            setIsSharhLoading(false);
-            return;
-        }
-        const hadithIdToFilter = hit.original_id || hit.objectID;
-        const filterKey = hit.original_id ? 'original_id' : 'objectID';
-        try {
-            const searchResults = await sharhIndex.search('', { 
-                filters: `${filterKey}:"${hadithIdToFilter}"`,
-                hitsPerPage: 100,
-            });
-            if (searchResults.hits.length > 0) {
-                const sortedSharhHits = searchResults.hits.sort((a, b) => (a.chunk_index || 0) - (b.chunk_index || 0));
-                const fullText = sortedSharhHits.map(h => h.sharh || '').join('');
-                setFullSharh(fullText.trim() || 'لا يتوفر شرح كامل لهذا الحديث.');
-            } else {
-                 setFullSharh(hit.sharh || 'لا يتوفر شرح كامل لهذا الحديث.');
-            }
-        } catch (error) {
-            setFullSharh('حدث خطأ أثناء تحميل الشرح.');
-        } finally {
-            setIsSharhLoading(false);
-        }
-    };
 
-    const handleResultClick = (hit) => {
-        const newIndex = hits.findIndex(h => h.objectID === hit.objectID);
-        if (newIndex !== -1) {
-            onNavigate(newIndex);
+        if (hit.sharh_url) {
+            try {
+                const response = await fetch(hit.sharh_url);
+                if (!response.ok) {
+                    throw new Error(`فشل جلب الملف: ${response.statusText}`);
+                }
+                const sharhText = await response.text();
+                setFullSharh(sharhText.trim() || 'لا يتوفر شرح لهذا الحديث.');
+            } catch (error) {
+                console.error("Error fetching sharh data from URL:", error);
+                setFullSharh(`حدث خطأ أثناء تحميل الشرح من الرابط: ${error.message}`);
+            }
+        } else {
+            setFullSharh(hit.sharh || 'لا يتوفر رابط أو شرح لهذا الحديث.');
         }
+        
+        setIsSharhLoading(false);
     };
     
     useEffect(() => {
         fetchFullSharh(currentHit);
         document.querySelector('.book-view-container')?.scrollTo(0, 0);
-        setInBookSearchResults(null);
-        setInBookQuery('');
     }, [currentIndex]);
 
-    const getTitle = (s) => s.source ? `${s.source} - ${s.page_or_number || ''}`.trim() : 'بدون عنوان';
+    const getTitle = (s) => {
+        const pageOrNum = s.page_or_number ?? s.page ?? s.number;
+        const sourceText = s.source || 'بدون عنوان';
+        return pageOrNum ? `${sourceText} - ${pageOrNum}` : sourceText;
+    };
     
     const renderCategories = (categories) => {
         if (!categories) return null;
@@ -490,8 +460,12 @@ const BookView = ({ hits, currentIndex, onNavigate, onClose }) => {
 
             return React.createElement('div', { className: "py-2 px-3 flex flex-wrap gap-x-4 bg-gray-50 even:bg-white border-b" },
                 React.createElement('dt', { className: "w-full sm:w-32 font-semibold text-gray-700 flex-shrink-0" }, "التصنيفات"),
-                React.createElement('dd', { className: "text-gray-800 flex-1" },
-                    items.map((item, index) => React.createElement('span', { key: index, className: "inline-block bg-gray-200 rounded-full px-3 py-1 text-sm font-semibold text-gray-700 mr-2 mb-2" }, item))
+                React.createElement('dd', { className: "text-gray-800 flex-1 flex flex-wrap gap-2" },
+                    items.map((item, index) => React.createElement('button', {
+                         key: index,
+                         onClick: () => onCategoryClick(item),
+                         className: "inline-block bg-brown-100 text-brown-800 rounded-full px-3 py-1 text-sm font-semibold hover:bg-brown-200 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brown-500"
+                    }, item))
                 )
             );
         } catch (e) {
@@ -514,32 +488,25 @@ const BookView = ({ hits, currentIndex, onNavigate, onClose }) => {
                         )
                     )
                 ),
-                React.createElement('div', { className: "p-2 border-b" },
-                    React.createElement(SearchBar, { onSearch: handleInBookSearch, isLoading: isSearchingInBook, isBookView: true, query: inBookQuery, onQueryChange: setInBookQuery })
-                ),
                 React.createElement('main', { className: "p-6 md:p-8" },
-                    inBookSearchResults ? (
-                         React.createElement(SearchResults, { results: inBookSearchResults, isLoading: isSearchingInBook, error: inBookError, onResultClick: handleResultClick })
-                    ) : (
-                        React.createElement('div', { className: "font-serif leading-loose whitespace-pre-wrap text-right", style: { fontSize: `${fontSize}px` }},
-                            React.createElement('h2', { className: "text-xl font-bold text-brown-800 mb-3" }, "نص الحديث"),
-                            React.createElement('p', { className: "mb-6 bg-yellow-50 p-4 rounded-md", dangerouslySetInnerHTML: { __html: source.hadith } }),
-                            React.createElement('h2', { className: "text-xl font-bold text-brown-800 mb-3" }, "الشرح"),
-                            isSharhLoading ? React.createElement('div', { className: "text-center p-4 text-gray-500" }, "جاري تحميل الشرح...") : React.createElement('p', { className: "mb-6", dangerouslySetInnerHTML: { __html: fullSharh } }),
-                            React.createElement('h2', { className: "text-xl font-bold text-brown-800 mb-3" }, "تفاصيل الحديث"),
-                             React.createElement('dl', { className: "border rounded-md overflow-hidden" },
-                                React.createElement(DetailRow, { label: "المصدر", value: source.source }),
-                                React.createElement(DetailRow, { label: "الراوي", value: source.rawi }),
-                                source.muhaddith && source.muhaddith === source.hukm ? 
-                                    React.createElement(DetailRow, { label: "الحكم والمحدث", value: source.hukm })
-                                 : React.createElement(React.Fragment, null,
-                                        React.createElement(DetailRow, { label: "المحدث", value: source.muhaddith }),
-                                        React.createElement(DetailRow, { label: "الحكم", value: source.hukm })
-                                    ),
-                                React.createElement(DetailRow, { label: "التخريج", value: source.takhrij }),
-                                renderCategories(source.categories),
-                                React.createElement(DetailRow, { label: "معرف", value: source.id || source.objectID })
-                            )
+                    React.createElement('div', { className: "font-serif leading-loose whitespace-pre-wrap text-right", style: { fontSize: `${fontSize}px` }},
+                        React.createElement('h2', { className: "text-xl font-bold text-brown-800 mb-3" }, "نص الحديث"),
+                        React.createElement('p', { className: "mb-6 bg-yellow-50 p-4 rounded-md", dangerouslySetInnerHTML: { __html: source.hadith } }),
+                        React.createElement('h2', { className: "text-xl font-bold text-brown-800 mb-3" }, "الشرح"),
+                        isSharhLoading ? React.createElement('div', { className: "text-center p-4 text-gray-500" }, "جاري تحميل الشرح...") : React.createElement('p', { className: "mb-6", dangerouslySetInnerHTML: { __html: fullSharh } }),
+                        React.createElement('h2', { className: "text-xl font-bold text-brown-800 mb-3" }, "تفاصيل الحديث"),
+                         React.createElement('dl', { className: "border rounded-md overflow-hidden" },
+                            React.createElement(DetailRow, { label: "المصدر", value: source.source }),
+                            React.createElement(DetailRow, { label: "الراوي", value: source.rawi }),
+                            source.muhaddith && source.muhaddith === source.hukm ? 
+                                React.createElement(DetailRow, { label: "الحكم والمحدث", value: source.hukm })
+                             : React.createElement(React.Fragment, null,
+                                    React.createElement(DetailRow, { label: "المحدث", value: source.muhaddith }),
+                                    React.createElement(DetailRow, { label: "الحكم", value: source.hukm })
+                                ),
+                            React.createElement(DetailRow, { label: "التخريج", value: source.takhrij }),
+                            renderCategories(source.categories),
+                            React.createElement(DetailRow, { label: "معرف", value: source.id || source.objectID })
                         )
                     )
                 ),
@@ -623,9 +590,16 @@ const App = () => {
         setSelectedHit(null);
         setSelectedHitIndex(null);
     };
+    
+    const handleCategorySearch = (category) => {
+        handleCloseBookView();
+        setTimeout(() => {
+            handleSearch({ query: category, type: SearchType.PHRASE, century: undefined });
+        }, 100);
+    };
 
     if (selectedHit && selectedHitIndex !== null && searchResults && searchResults.hits) {
-        return React.createElement(BookView, { hits: searchResults.hits, currentIndex: selectedHitIndex, onNavigate: handleBookViewNavigation, onClose: handleCloseBookView });
+        return React.createElement(BookView, { hits: searchResults.hits, currentIndex: selectedHitIndex, onNavigate: handleBookViewNavigation, onClose: handleCloseBookView, onCategoryClick: handleCategorySearch });
     }
 
     return (
@@ -633,7 +607,7 @@ const App = () => {
             React.createElement('header', { className: "bg-[#D2B48C] py-6 shadow-md" },
                 React.createElement('div', { className: "container mx-auto px-4 text-center" },
                     React.createElement('h1', { className: "text-4xl font-bold font-serif text-brown-900" }, "المكتبة الحديثية الرقمية"),
-                    React.createElement('p', { className: "text-lg mt-2 text-brown-700" }, "باحث متقدم وموحد في نصوص الحديث الشريف")
+                    React.createElement('p', { className: "text-lg mt-2 text-brown-700" }, "صحة حديث \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0 شرح حديث")
                 )
             ),
             React.createElement('main', { className: "container mx-auto p-4 md:p-8" },
