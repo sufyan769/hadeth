@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>البحث في الفتاوى</title>
+  <style>
+    body {
+      font-family: "Cairo", sans-serif;
+      background-color: #f8f9fa;
+      color: #222;
+      text-align: center;
+      margin: 40px;
+    }
+    h1 {
+      color: #0078d7;
+      margin-bottom: 25px;
+    }
+    .search-box {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 25px;
+    }
+    input {
+      width: 60%;
+      max-width: 600px;
+      padding: 10px 15px;
+      font-size: 18px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+      text-align: right;
+    }
+    button {
+      padding: 10px 25px;
+      font-size: 18px;
+      border: none;
+      border-radius: 10px;
+      background-color: #0078d7;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover { background-color: #005fa3; }
+    .result {
+      background: #fff;
+      text-align: right;
+      padding: 15px;
+      border-radius: 12px;
+      margin: 10px auto;
+      width: 90%;
+      max-width: 800px;
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
+    }
+    .question { font-weight: bold; color: #000; margin-bottom: 10px; }
+    .answer { line-height: 1.8; white-space: pre-wrap; color: #333; }
+    .source { margin-top: 8px; font-size: 14px; color: #666; }
+    .loading { color: #0078d7; font-size: 20px; margin-top: 10px; }
+    .hl { background: yellow; border-radius: 3px; padding: 0 3px; }
+  </style>
+</head>
+<body>
+  <h1>📚 البحث في الفتاوى</h1>
+
+  <div class="search-box">
+    <input id="query" placeholder="اكتب كلمة البحث (مثلاً: الصلاة)">
+    <button onclick="searchFatwas()">بحث</button>
+  </div>
+
+  <div id="status" class="loading"></div>
+  <div id="results"></div>
+
+  <script>
+    // استخدم البروكسي المحلي لتجاوز CORS
+    const BASE = "http://localhost:5050/api/";
+
+    async function searchFatwas() {
+      const q = document.getElementById("query").value.trim();
+      const status = document.getElementById("status");
+      const results = document.getElementById("results");
+      results.innerHTML = "";
+      if (!q) {
+        status.textContent = "📝 اكتب كلمة للبحث أولاً.";
+        return;
+      }
+
+      status.textContent = "⏳ جاري البحث...";
+      try {
+        const res = await fetch(BASE + encodeURIComponent(q));
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        const items = data.items || data || [];
+        if (!items.length) {
+          status.textContent = "❌ لا توجد نتائج.";
+          return;
+        }
+
+        status.textContent = `✅ عدد النتائج: ${items.length}`;
+        const regex = new RegExp(q, "gi");
+        results.innerHTML = items
+          .map(
+            (f) => `
+          <div class="result">
+            <div class="question">${(f.question || "").replace(
+              regex,
+              (m) => '<span class="hl">' + m + "</span>"
+            )}</div>
+            <div class="answer">${(f.answer || "").replace(
+              regex,
+              (m) => '<span class="hl">' + m + "</span>"
+            )}</div>
+            <div class="source">📄 المصدر: ${f.source || ""}</div>
+          </div>
+        `
+          )
+          .join("");
+      } catch (err) {
+        console.error(err);
+        status.textContent = "⚠️ حدث خطأ أثناء الجلب. تأكد أن البروكسي يعمل.";
+      }
+    }
+
+    document.getElementById("query").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") searchFatwas();
+    });
+  </script>
+</body>
+</html>
