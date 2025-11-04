@@ -3,90 +3,121 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>البحث في الأحاديث</title>
+  <title>موسوعة الحديث</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;700&display=swap" rel="stylesheet">
   <style>
     body {
+      font-family: 'Amiri', serif;
+      background-color: #f8f9fa;
+      color: #202122;
+    }
+    .main-container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-left: 1px solid #a7d7f9;
+      border-right: 1px solid #a7d7f9;
+      min-height: 100vh;
+    }
+    #main-header h1 {
+        font-family: 'Cairo', sans-serif;
+    }
+    h1, h2, h3 {
       font-family: 'Cairo', sans-serif;
-      background-color: #FDF6E3;
+      border-bottom: 1px solid #a2a9b1;
+      padding-bottom: 0.25em;
+      margin-bottom: 0.5em;
     }
-    .simpson-border {
-      border: 3px solid black;
-      box-shadow: 4px 4px 0 #000;
-      border-radius: 0.75rem;
-      transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
+    a {
+      color: #3366cc;
+      text-decoration: none;
     }
-    .simpson-border:hover {
-        transform: translate(-2px, -2px);
-        box-shadow: 6px 6px 0 #000;
+    a:hover {
+      text-decoration: underline;
     }
-    .simpson-button {
-      border: 3px solid black;
-      box-shadow: 4px 4px 0 #000;
-      transition: all 0.1s ease-in-out;
-      font-weight: 700;
+    .search-input {
+      border: 1px solid #a2a9b1;
+      padding: 0.5rem 0.75rem;
+      width: 100%;
+      background-color: #fff;
+      transition: border-color .15s ease-in-out;
     }
-    .simpson-button:active {
-      transform: translate(4px, 4px);
-      box-shadow: none;
+    .search-input:focus {
+      border-color: #3366cc;
+      outline: none;
     }
-     .animate-spin {
+    .search-button {
+      border: 1px solid #a2a9b1;
+      background-color: #f8f9fa;
+      cursor: pointer;
+      padding: 0.5rem 1rem;
+      transition: background-color .15s ease-in-out, border-color .15s ease-in-out;
+    }
+    .search-button:hover {
+      background-color: #e9ecef;
+      border-color: #72777d;
+    }
+    .search-result-item {
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #eaecf0;
+    }
+    .search-result-item:last-child {
+        border-bottom: none;
+    }
+    .search-result-item p {
+        font-size: 1.1rem;
+        line-height: 1.7;
+    }
+    .footer {
+        font-family: 'Cairo', sans-serif;
+        font-size: 0.8rem;
+        color: #54595d;
+    }
+    .animate-spin {
       animation: spin 1s linear infinite;
     }
     @keyframes spin {
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
     }
-    .hadith-card {
-        background-color: #FFFBF2;
-    }
   </style>
 </head>
 <body class="text-stone-900">
 
-  <div class="min-h-screen">
-    <main class="container mx-auto px-4 py-8 md:py-12">
-      <header class="text-center mb-8">
-        <a href="./" class="text-4xl md:text-5xl font-black text-stone-800 no-underline hover:text-amber-700 transition-colors">
-          <h1>البحث في الأحاديث</h1>
+  <div class="main-container p-4 md:p-8">
+      <header id="main-header" class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <a href="./" class="no-underline hover:no-underline">
+            <h1 class="text-3xl font-bold text-black border-none m-0 p-0">موسوعة الحديث</h1>
         </a>
-        <p class="text-lg text-stone-600 mt-2 font-bold">
-          موسوعة الحديث النبوي الشريف
-        </p>
-      </header>
-      
-      <div class="max-w-4xl mx-auto">
-          <form id="searchForm" class="flex items-center gap-3 mb-8">
-            <div class="relative w-full">
-              <input
-                id="searchBox"
-                type="text"
-                placeholder="ابحث عن حديث..."
-                class="simpson-border w-full text-lg md:text-xl py-3 px-5 border-black rounded-full shadow-sm focus:outline-none transition-shadow duration-200 bg-white"
-                autofocus
-              />
-            </div>
-            <button type="submit" class="simpson-button px-6 py-3 bg-amber-400 text-black text-lg rounded-full hover:bg-amber-500 focus:outline-none flex-shrink-0">
+        <form id="searchForm" class="flex items-center w-full sm:w-auto sm:max-w-xs">
+            <input
+              id="searchBox"
+              type="text"
+              placeholder="ابحث في الأحاديث..."
+              class="search-input"
+              autofocus
+            />
+            <button type="submit" class="search-button flex-shrink-0">
               بحث
             </button>
-          </form>
+        </form>
+      </header>
+    
+      <main id="content">
           <div id="results-container">
             <!-- Featured Hadiths or Search Results will be rendered here -->
           </div>
-      </div>
-    </main>
+      </main>
+
+      <footer class="footer mt-12 py-4 border-t border-gray-200 text-center">
+        <button id="font-size-toggle-btn" class="hover:underline">تغيير حجم الخط</button>
+      </footer>
   </div>
   
-  <div id="fab-container" class="fixed bottom-4 right-4 flex items-center gap-3 z-50">
-      <button id="font-size-toggle-btn" class="simpson-button bg-amber-500 text-black w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl font-black hover:bg-amber-600" aria-label="تغيير حجم الخط" title="تغيير حجم الخط">
-          A+
-      </button>
-  </div>
-
   <script>
     document.addEventListener('DOMContentLoaded', () => {
         // --- CONFIG & CONSTANTS ---
@@ -101,7 +132,6 @@
         const searchBox = document.getElementById('searchBox');
         const resultsContainer = document.getElementById('results-container');
         const fontSizeToggleBtn = document.getElementById('font-size-toggle-btn');
-        const fabContainer = document.getElementById('fab-container');
 
         // --- ALGOLIA CLIENT ---
         if (typeof algoliasearch === 'undefined') {
@@ -118,7 +148,7 @@
         const showLoader = (container) => {
             container.innerHTML = `
                 <div class="flex justify-center items-center py-10">
-                    <div class="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                    <div class="w-8 h-8 border-4 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
                 </div>`;
         };
         
@@ -139,65 +169,35 @@
             });
         };
 
-        // --- DRAGGABLE FAB ---
-        const initDraggable = (element) => {
-          let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-          element.onmousedown = dragMouseDown;
-
-          function dragMouseDown(e) {
-              if (e.target.closest('button, a')) return;
-              e.preventDefault();
-              pos3 = e.clientX;
-              pos4 = e.clientY;
-              document.onmouseup = closeDragElement;
-              document.onmousemove = elementDrag;
-          }
-
-          function elementDrag(e) {
-              e.preventDefault();
-              pos1 = pos3 - e.clientX;
-              pos2 = pos4 - e.clientY;
-              pos3 = e.clientX;
-              pos4 = e.clientY;
-              element.style.top = (element.offsetTop - pos2) + "px";
-              element.style.left = (element.offsetLeft - pos1) + "px";
-              element.style.bottom = 'auto';
-              element.style.right = 'auto';
-          }
-
-          function closeDragElement() {
-              document.onmouseup = null;
-              document.onmousemove = null;
-          }
-        };
-
         // --- SEARCH LOGIC ---
         const renderFeaturedHadiths = async (container) => {
             showLoader(container);
             try {
                 const randomPage = Math.floor(Math.random() * 100);
-                let { hits } = await index.search('', { hitsPerPage: 7, page: randomPage });
+                let { hits } = await index.search('', { hitsPerPage: 10, page: randomPage });
                 
                 if (hits.length === 0) {
-                   const fallbackResult = await index.search('', { hitsPerPage: 7, page: 0 });
+                   const fallbackResult = await index.search('', { hitsPerPage: 10, page: 0 });
                    hits = fallbackResult.hits;
                 }
                 
                 if (!hits || hits.length === 0) throw new Error("No featured hadiths found.");
                 
                 const hadithsHTML = hits.map(hadith => `
-                    <a href="./details.html?id=${hadith.objectID}" class="block hadith-card p-6 simpson-border">
-                        <p class="text-stone-800 leading-relaxed text-lg">${hadith.text}</p>
-                    </a>
+                    <div class="search-result-item">
+                        <a href="./details.html?id=${hadith.objectID}">
+                            <p>${hadith.text}</p>
+                        </a>
+                    </div>
                 `).join('');
 
                 container.innerHTML = `
-                    <h2 class="text-2xl font-black text-stone-800 mb-4">أحاديث مختارة</h2>
-                    <div class="space-y-6">${hadithsHTML}</div>
+                    <h2 class="text-2xl font-bold">محتويات مختارة</h2>
+                    <div>${hadithsHTML}</div>
                 `;
             } catch (err) {
                 console.error("Failed to fetch featured hadiths:", err);
-                container.innerHTML = `<div class="text-center py-6 px-4 hadith-card simpson-border"><p class="text-stone-600">تعذر تحميل الأحاديث المختارة.</p></div>`;
+                container.innerHTML = `<div class="text-center py-6 px-4 border border-gray-200"><p>تعذر تحميل الأحاديث المختارة.</p></div>`;
             }
         };
 
@@ -205,13 +205,15 @@
             const resultsHTML = hits.map(hit => {
                 const content = hit._highlightResult?.text.value || hit.text;
                 return `
-                  <a href="./details.html?id=${hit.objectID}" class="block hadith-card p-5 simpson-border">
-                    <p class="text-stone-800 leading-relaxed text-lg">
-                      ${content.replace(/<em>/g, '<em class="bg-amber-300 not-italic font-semibold">')}
-                    </p>
-                  </a>`;
+                  <div class="search-result-item">
+                    <a href="./details.html?id=${hit.objectID}">
+                      <p>
+                        ${content.replace(/<em>/g, '<em class="bg-yellow-200 not-italic font-semibold">')}
+                      </p>
+                    </a>
+                  </div>`;
             }).join('');
-            container.innerHTML = `<div class="space-y-6">${resultsHTML}</div>`;
+            container.innerHTML = `<div>${resultsHTML}</div>`;
         };
 
         const runSearch = async (query) => {
@@ -224,7 +226,7 @@
             try {
                 const { hits } = await index.search(trimmedQuery, { hitsPerPage: 50 });
                 if (hits.length === 0) {
-                    resultsContainer.innerHTML = `<div class="text-center py-10 px-4 hadith-card simpson-border"><p class="text-stone-600 text-lg">لم يتم العثور على نتائج للكلمة: "${sanitizeHTML(trimmedQuery)}"</p></div>`;
+                    resultsContainer.innerHTML = `<div class="text-center py-10 px-4 border border-gray-200"><p>لم يتم العثور على نتائج للكلمة: "${sanitizeHTML(trimmedQuery)}"</p></div>`;
                 } else {
                     renderSearchResults(hits, resultsContainer);
                 }
@@ -244,8 +246,7 @@
 
         // --- INITIALIZATION ---
         initFontSizeControl();
-        initDraggable(fabContainer);
-
+        
         const savedQuery = sessionStorage.getItem('hadithSearchQuery');
         if (savedQuery) {
             searchBox.value = savedQuery;
