@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -75,6 +74,9 @@
     document.addEventListener('DOMContentLoaded', () => {
         // --- CONFIG & CONSTANTS ---
         const ORDS_API_BASE_URL = "https://g85b062bd5c6cb1-fatwaproject.adb.me-dubai-1.oraclecloudapps.com/ords/SUFEAN/hadith_full_api";
+        const ALGOLIA_APP_ID = "3XD12I7386";
+        const ALGOLIA_SEARCH_KEY = "89e8e132a05fdb02275f64dec8d14d05";
+        const ALGOLIA_INDEX_NAME = "hadeth-2";
         const FONT_SIZES = [16, 18, 20, 24];
         const LS_FONT_KEY = 'hadithAppFontSize';
         
@@ -140,6 +142,45 @@
             }
         };
 
+        // --- RELATED HADITHS LOGIC ---
+        const fetchAndRenderRelatedHadiths = async (hadith) => {
+            const container = document.getElementById('related-hadiths-container');
+            if (!container || !hadith.categories) return;
+
+            container.innerHTML = `
+                <div class="flex justify-center items-center p-4">
+                    <div class="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>`;
+            
+            try {
+                if (typeof algoliasearch === 'undefined') {
+                    throw new Error('Algolia client not loaded.');
+                }
+                const client = algoliasearch(ALGOLIA_APP_ID, ALGOLIA_SEARCH_KEY);
+                const index = client.initIndex(ALGOLIA_INDEX_NAME);
+
+                const mainCategory = hadith.categories.split('|')[0].trim();
+                const { hits } = await index.search(mainCategory, { hitsPerPage: 6 });
+
+                const relatedHits = hits.filter(hit => hit.objectID != hadith.id).slice(0, 5);
+
+                if (relatedHits.length > 0) {
+                    const relatedHtml = relatedHits.map(hit => `
+                        <a href="./details.html?id=${hit.objectID}" class="block bg-amber-50 p-3 simpson-border text-sm">
+                           ${hit.text.substring(0, 150)}...
+                        </a>
+                    `).join('');
+                    container.innerHTML = `<div class="space-y-4">${relatedHtml}</div>`;
+                } else {
+                    container.innerHTML = `<p class="text-stone-600">لا توجد أحاديث ذات صلة.</p>`;
+                }
+            } catch (err) {
+                console.error("Failed to fetch related hadiths:", err);
+                container.innerHTML = `<p class="text-red-500">تعذر تحميل الأحاديث ذات الصلة.</p>`;
+            }
+        };
+
+
         // --- HADITH DETAILS LOGIC ---
         const renderHadith = (hadith) => {
             const categoriesHtml = (hadith.categories || '').split('|').map(cat => cat.trim()).filter(Boolean).map(cat =>
@@ -154,11 +195,20 @@
                 { label: 'المصدر', value: hadith.source },
                 { label: 'الصفحة/الرقم', value: hadith.page_number },
                 { label: 'الحكم', value: hadith.hukm },
+                { label: 'التخريج', value: hadith.takhrij },
             ];
             
             const metadataHtml = metadataPoints.filter(item => item.value).map(item => `
                 <div class="py-2"><strong class="text-stone-700 font-bold ml-2">${item.label}:</strong><span>${item.value}</span></div>
             `).join('');
+            
+            let fullSharh = '';
+            for (let i = 1; i <= 6; i++) {
+                if (hadith[`sharh${i}`]) {
+                    fullSharh += hadith[`sharh${i}`] + ' ';
+                }
+            }
+            fullSharh = fullSharh.trim();
 
             const contentHTML = `
                 <div class="space-y-8">
@@ -172,10 +222,10 @@
                         <div class="space-y-1 text-md">${metadataHtml}</div>
                     </div>
 
-                    ${hadith.sharh1 ? `
+                    ${fullSharh ? `
                     <div class="hadith-card p-6 simpson-border">
                         <h2 class="text-2xl font-black text-amber-700 mb-3">الشرح</h2>
-                        <p class="text-stone-800 whitespace-pre-wrap leading-loose text-lg">${hadith.sharh1}</p>
+                        <p class="text-stone-800 whitespace-pre-wrap leading-loose text-lg">${fullSharh}</p>
                     </div>` : ''}
                     
                     <div class="flex flex-wrap gap-4 items-center">
@@ -187,11 +237,18 @@
                         </button>
                          ${categoriesHtml ? `<div class="flex flex-wrap gap-2">${categoriesHtml}</div>` : ''}
                     </div>
+                    
+                    <div class="hadith-card p-6 simpson-border">
+                        <h2 class="text-2xl font-black text-amber-700 mb-4">أحاديث ذات صلة</h2>
+                        <div id="related-hadiths-container"></div>
+                    </div>
                 </div>
             `;
             detailsContainer.innerHTML = contentHTML;
             loaderContainer.classList.add('hidden');
             detailsContainer.classList.remove('hidden');
+
+            fetchAndRenderRelatedHadiths(hadith);
         };
 
         const showError = (message) => {
@@ -238,6 +295,14 @@
             const copyBtn = e.target.closest('#copy-hadith-btn');
             if (copyBtn) {
                 if (!currentHadithData) return;
+                
+                let fullSharh = '';
+                for (let i = 1; i <= 6; i++) {
+                    if (currentHadithData[`sharh${i}`]) {
+                        fullSharh += currentHadithData[`sharh${i}`] + ' ';
+                    }
+                }
+                fullSharh = fullSharh.trim();
 
                 const metadataPoints = [
                     { label: 'الحديث', value: currentHadithData.text },
@@ -246,6 +311,7 @@
                     { label: 'المصدر', value: currentHadithData.source },
                     { label: 'الصفحة/الرقم', value: currentHadithData.page_number },
                     { label: 'الحكم', value: currentHadithData.hukm },
+                    { label: 'التخريج', value: currentHadithData.takhrij },
                 ];
 
                 let textToCopy = metadataPoints
@@ -253,8 +319,8 @@
                     .map(item => `${item.label}: ${item.value}`)
                     .join('\n');
                 
-                if (currentHadithData.sharh1) {
-                    textToCopy += `\n\nالشرح: ${currentHadithData.sharh1}`;
+                if (fullSharh) {
+                    textToCopy += `\n\nالشرح: ${fullSharh}`;
                 }
 
                 navigator.clipboard.writeText(textToCopy).then(() => {
