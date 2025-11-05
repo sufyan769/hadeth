@@ -224,11 +224,16 @@
         const renderHadith = (hadith, id) => {
             document.title = `موسوعة الحديث - ${(hadith.text || '').substring(0, 50)}...`;
 
-            const categoriesHtml = (hadith.categories || '').split('|').map(cat => cat.trim()).filter(Boolean).map(cat =>
-                `<a href="./category.html?q=${encodeURIComponent(cat)}" class="category-link">
-                    ${cat}
-                </a>`
-            ).join('');
+            const categoriesHtml = (hadith.categories || '')
+                .split('|')
+                .flatMap(catGroup => catGroup.split(' - '))
+                .map(cat => cat.trim())
+                .filter(Boolean)
+                .map(cat =>
+                    `<a href="./category.html?q=${encodeURIComponent(cat)}" class="category-link">
+                        ${cat}
+                    </a>`
+                ).join('');
 
             const metadataPoints = [
                 { label: 'الراوي', value: hadith.rawi },
@@ -262,7 +267,7 @@
                     </table>
                     
                     <div class="content-body">
-                        <p class="text-stone-800 whitespace-pre-wrap font-bold text-xl mb-8">${hadith.text || ''}</p>
+                        <p class="text-stone-800 whitespace-pre-wrap font-bold text-xl mt-2 mb-8">${hadith.text || ''}</p>
                         
                         <div class="action-buttons mb-8">
                             <button id="copy-hadith-btn" class="action-button">نسخ</button>
@@ -270,7 +275,7 @@
                         </div>
 
                         ${fullSharh ? `
-                        <h2 class="text-2xl font-bold mt-10">الشرح والتفسير</h2>
+                        <h2 class="text-2xl font-bold mt-10 mb-4">الشرح والتفسير</h2>
                         <p class="text-stone-800 whitespace-pre-wrap">${fullSharh}</p>` : ''}
                         
                         <h2 class="text-2xl font-bold mt-10">أحاديث ذات صلة</h2>
