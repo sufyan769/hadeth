@@ -146,11 +146,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 resultsContainer.innerHTML = `<div class="text-center py-10 px-4 border border-gray-200"><p>لا توجد نتائج في هذا التصنيف.</p></div>`;
             } else {
                 const resultsHTML = hits.map(h => {
-                    // API might return uppercase keys, so we check for both cases.
-                    const id = h.ID || h.id;
-                    const text = h.TEXT || h.text;
-                    const rawi = h.RAWI || h.rawi;
-                    const hukm = h.HUKM || h.hukm;
+                    // Match the new API response structure
+                    const id = h.id;
+                    const text = h.hadith_text;
+                    const muhaddith = h.muhaddith;
+                    const source = h.source;
+                    const hukm = h.hukm;
 
                     if (!id || !text) return null; // Skip items with missing essential data
 
@@ -159,7 +160,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             <a href="./details.html?id=${id}" class="block p-2 rounded transition-colors hover:bg-gray-50">
                                 <p class="text-lg text-stone-800 leading-relaxed">${text}</p>
                                 <div class="mt-3 text-sm text-gray-600 flex items-center flex-wrap gap-x-4 gap-y-1">
-                                    ${rawi ? `<span><strong>الراوي:</strong> ${rawi}</span>` : ''}
+                                    ${muhaddith ? `<span><strong>المحدث:</strong> ${muhaddith}</span>` : ''}
+                                    ${source ? `<span><strong>المصدر:</strong> ${source}</span>` : ''}
                                     ${hukm ? `<span><strong>الحكم:</strong> ${hukm}</span>` : ''}
                                 </div>
                             </a>
