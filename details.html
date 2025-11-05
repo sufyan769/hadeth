@@ -251,7 +251,9 @@
             let fullSharh = '';
             for (let i = 1; i <= 6; i++) {
                 if (hadith[`sharh${i}`]) {
-                    fullSharh += hadith[`sharh${i}`] + ' ';
+                    // Replace escaped newlines with actual newlines to be rendered correctly.
+                    const sharhPart = String(hadith[`sharh${i}`]).replace(/\\n/g, '\n');
+                    fullSharh += sharhPart + ' ';
                 }
             }
             fullSharh = fullSharh.trim();
@@ -342,7 +344,9 @@
                 let fullSharh = '';
                 for (let i = 1; i <= 6; i++) {
                     if (currentHadithData[`sharh${i}`]) {
-                        fullSharh += currentHadithData[`sharh${i}`] + ' ';
+                        // Also apply newline replacement here for the copied text
+                        const sharhPart = String(currentHadithData[`sharh${i}`]).replace(/\\n/g, '\n');
+                        fullSharh += sharhPart + ' ';
                     }
                 }
                 fullSharh = fullSharh.trim();
