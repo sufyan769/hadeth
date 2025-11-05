@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>تفاصيل الحديث</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -125,7 +126,7 @@
 <body>
     <div class="main-container p-4 md:p-8">
         <header id="main-header" class="mb-4">
-            <a href="./index.html">&larr; العودة إلى البحث</a>
+            <a href="./wiki.html">&larr; العودة إلى البحث</a>
         </header>
 
         <div id="loader-container" class="flex justify-center items-center py-20">
@@ -335,7 +336,7 @@
                 const hadithText = similarBtn.dataset.hadithText;
                 if (hadithText) {
                     sessionStorage.setItem('hadithSearchQuery', hadithText);
-                    window.location.href = './index.html';
+                    window.location.href = './wiki.html';
                 }
             }
 
