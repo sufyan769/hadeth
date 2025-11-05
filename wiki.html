@@ -46,6 +46,7 @@
       width: 100%;
       background-color: #fff;
       transition: border-color .15s ease-in-out;
+      border-radius: 0;
     }
     .search-input:focus {
       border-color: #3366cc;
@@ -57,10 +58,27 @@
       cursor: pointer;
       padding: 0.5rem 1rem;
       transition: background-color .15s ease-in-out, border-color .15s ease-in-out;
+      border-radius: 0;
     }
     .search-button:hover {
       background-color: #e9ecef;
       border-color: #72777d;
+    }
+     .action-button {
+        border: 1px solid #a2a9b1;
+        background-color: #f8f9fa;
+        cursor: pointer;
+        padding: 0.3rem 0.8rem;
+        transition: background-color .15s ease-in-out, border-color .15s ease-in-out;
+        font-family: 'Cairo', sans-serif;
+        font-size: 0.9rem;
+        border-radius: 2px;
+        white-space: nowrap;
+    }
+    .action-button:hover {
+        background-color: #e9ecef;
+        border-color: #72777d;
+        text-decoration: none;
     }
     .search-result-item {
       padding: 0.75rem 0;
@@ -90,11 +108,17 @@
 <body class="text-stone-900">
 
   <div class="main-container p-4 md:p-8">
-      <header id="main-header" class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <a href="./wiki.html" class="no-underline hover:no-underline">
-            <h1 class="text-3xl font-bold text-black border-none m-0 p-0">موسوعة الحديث</h1>
-        </a>
-        <form id="searchForm" class="flex items-center w-full sm:w-auto sm:max-w-xs">
+      <header id="main-header" class="mb-6">
+        <div class="flex justify-between items-center gap-4 mb-4">
+            <a href="./wiki.html" class="no-underline hover:no-underline">
+                <h1 class="text-3xl font-bold text-black border-none m-0 p-0">موسوعة الحديث</h1>
+            </a>
+            <div id="header-actions" class="flex items-center gap-2">
+                <button id="back-btn" class="action-button">عودة</button>
+                <button id="font-size-toggle-btn" class="action-button">حجم الخط</button>
+            </div>
+        </div>
+        <form id="searchForm" class="flex items-center w-full">
             <input
               id="searchBox"
               type="text"
@@ -115,7 +139,7 @@
       </main>
 
       <footer class="footer mt-12 py-4 border-t border-gray-200 text-center">
-        <button id="font-size-toggle-btn" class="hover:underline">تغيير حجم الخط</button>
+        <!-- Footer content can go here -->
       </footer>
   </div>
   
@@ -133,6 +157,7 @@
         const searchBox = document.getElementById('searchBox');
         const resultsContainer = document.getElementById('results-container');
         const fontSizeToggleBtn = document.getElementById('font-size-toggle-btn');
+        const backBtn = document.getElementById('back-btn');
 
         // --- ALGOLIA CLIENT ---
         if (typeof algoliasearch === 'undefined') {
@@ -168,6 +193,15 @@
                 const nextIndex = (currentIndex + 1) % FONT_SIZES.length;
                 applyFontSize(FONT_SIZES[nextIndex]);
             });
+        };
+
+        // --- NAVIGATION ---
+        const initNavigation = () => {
+            if (backBtn) {
+                backBtn.addEventListener('click', () => {
+                    history.back();
+                });
+            }
         };
 
         // --- SEARCH LOGIC ---
@@ -247,6 +281,7 @@
 
         // --- INITIALIZATION ---
         initFontSizeControl();
+        initNavigation();
         
         const savedQuery = sessionStorage.getItem('hadithSearchQuery');
         if (savedQuery) {
