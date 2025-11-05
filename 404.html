@@ -14,6 +14,7 @@
       font-family: 'Cairo', sans-serif;
       background-color: #f8f9fa;
       color: #202122;
+      font-size: 16px;
     }
     .main-container {
       max-width: 1000px;
@@ -24,7 +25,6 @@
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      justify-content: center;
     }
      a {
       color: #3366cc;
@@ -33,19 +33,67 @@
     a:hover {
       text-decoration: underline;
     }
+    .action-button {
+        border: 1px solid #a2a9b1;
+        background-color: #f8f9fa;
+        cursor: pointer;
+        padding: 0.3rem 0.8rem;
+        transition: background-color .15s ease-in-out, border-color .15s ease-in-out;
+        font-family: 'Cairo', sans-serif;
+        font-size: 0.9rem;
+        border-radius: 2px;
+        white-space: nowrap;
+    }
+    .action-button:hover {
+        background-color: #e9ecef;
+        border-color: #72777d;
+        text-decoration: none;
+    }
   </style>
 </head>
 <body>
 
-  <div class="main-container p-8 text-center">
-    <main>
+  <div class="main-container p-4 md:p-8">
+    <header id="main-header" class="flex justify-end items-center mb-6">
+        <div id="header-actions" class="flex items-center gap-2">
+            <a href="./wiki.html" class="action-button">صفحة البحث</a>
+            <button id="back-btn" class="action-button">عودة</button>
+            <button id="font-size-toggle-btn" class="action-button">حجم الخط</button>
+        </div>
+    </header>
+    <main class="flex-grow flex flex-col justify-center text-center">
       <h1 class="text-6xl font-bold text-gray-500 mb-4">خطأ 404</h1>
       <p class="text-xl text-gray-700 mt-4 mb-8">لم يتم العثور على الصفحة المطلوبة.</p>
-      <a href="./wiki.html" class="text-lg">
-        العودة إلى الصفحة الرئيسية
-      </a>
     </main>
   </div>
   
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const backBtn = document.getElementById('back-btn');
+        if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                history.back();
+            });
+        }
+
+        const FONT_SIZES = [16, 18, 20, 24];
+        const LS_FONT_KEY = 'hadithAppFontSize';
+        const fontSizeToggleBtn = document.getElementById('font-size-toggle-btn');
+
+        const applyFontSize = (size) => {
+            document.documentElement.style.fontSize = `${size}px`;
+            localStorage.setItem(LS_FONT_KEY, size);
+        };
+        const savedSize = localStorage.getItem(LS_FONT_KEY);
+        if (savedSize) applyFontSize(parseInt(savedSize, 10));
+
+        fontSizeToggleBtn.addEventListener('click', () => {
+            const currentSize = parseInt(localStorage.getItem(LS_FONT_KEY) || FONT_SIZES[0], 10);
+            const currentIndex = FONT_SIZES.indexOf(currentSize) !== -1 ? FONT_SIZES.indexOf(currentSize) : 0;
+            const nextIndex = (currentIndex + 1) % FONT_SIZES.length;
+            applyFontSize(FONT_SIZES[nextIndex]);
+        });
+    });
+  </script>
 </body>
 </html>
