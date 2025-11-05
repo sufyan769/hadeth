@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>أحاديث حسب التصنيف</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;700&display=swap" rel="stylesheet">
@@ -86,24 +85,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- CONFIG & CONSTANTS ---
     const FONT_SIZES = [16, 18, 20, 24];
     const LS_FONT_KEY = 'hadithAppFontSize';
-    const ALGOLIA_APP_ID = "3XD12I7386";
-    const ALGOLIA_SEARCH_KEY = "89e8e132a05fdb02275f64dec8d14d05";
-    const ALGOLIA_INDEX_NAME = "hadeth-2";
+    const ORDS_API_CATEGORY_BASE_URL = "https://g85b062bd5c6cb1-fatwaproject.adb.me-dubai-1.oraclecloudapps.com/ords/SUFEAN/hadith/categories";
 
     // --- DOM ELEMENTS ---
     const categoryNameSpan = document.getElementById("category-name-span");
     const resultsContainer = document.getElementById("results-container");
     const fontSizeToggleBtn = document.getElementById('font-size-toggle-btn');
     
-    // --- ALGOLIA CLIENT ---
-    if (typeof algoliasearch === 'undefined') {
-      console.error('Algolia client not loaded.');
-      resultsContainer.innerHTML = `<p class="text-center text-red-500 py-10">لا يمكن تحميل خدمة البحث.</p>`;
-      return;
-    }
-    const client = algoliasearch(ALGOLIA_APP_ID, ALGOLIA_SEARCH_KEY);
-    const index = client.initIndex(ALGOLIA_INDEX_NAME);
-
     // --- HELPERS ---
     const sanitizeHTML = (str) => str.replace(/</g, "&lt;").replace(/>/g, "&gt;");
     
@@ -148,19 +136,18 @@ document.addEventListener('DOMContentLoaded', () => {
         showLoader();
 
         try {
-            // Switched to Algolia search with a filter for reliability.
-            // This avoids errors from the previous API endpoint.
-            const { hits } = await index.search('', {
-                hitsPerPage: 50,
-                filters: `categories:"${category}"`
-            });
+            const response = await fetch(`${ORDS_API_CATEGORY_BASE_URL}/${encodeURIComponent(category)}`);
+            if (!response.ok) throw new Error('Network response was not ok');
+
+            const data = await response.json();
+            const hits = data.items;
             
             if (!hits || hits.length === 0) {
                 resultsContainer.innerHTML = `<div class="text-center py-10 px-4 border border-gray-200"><p>لا توجد نتائج في هذا التصنيف.</p></div>`;
             } else {
                 const resultsHTML = hits.map(h => `
                     <div class="result-item">
-                        <a href="./details.html?id=${h.objectID}">
+                        <a href="./details.html?id=${h.id}">
                             <p>${h.text}</p>
                         </a>
                     </div>
@@ -168,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 resultsContainer.innerHTML = `<div>${resultsHTML}</div>`;
             }
         } catch (err) {
-            console.error("Failed to fetch category from Algolia:", err);
+            console.error("Failed to fetch category from ORDS:", err);
             resultsContainer.innerHTML = `<div class="text-center py-10 px-4 border border-gray-200"><p class="text-red-500">حدث خطأ أثناء تحميل البيانات.</p></div>`;
         }
     };
