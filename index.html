@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
   <head>
@@ -15,6 +14,9 @@
         font-family: 'Tajawal', sans-serif;
       }
     </style>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script type="importmap">
 {
   "imports": {
@@ -27,6 +29,104 @@
 </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <script type="text/babel">
+      // --- Icon Components ---
+      const BookOpenIcon = (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+        </svg>
+      );
+
+      const WikiIcon = (props) => (
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+              <path d="M12 12l4.95 4.95"/>
+              <path d="M12 12l-4.95 4.95"/>
+              <path d="M12 12V2"/>
+              <path d="M12 12H2"/>
+              <path d="M12 12h10"/>
+              <path d="M12 12l-4.95-4.95"/>
+              <path d="M12 12l4.95-4.95"/>
+          </svg>
+      );
+
+      const SearchIcon = (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+      );
+
+      // --- Navigation Button Component ---
+      const NavButton = ({ href, label, Icon }) => {
+        return (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex flex-col items-center justify-center w-full sm:w-56 h-40 p-6 bg-stone-50/50 hover:bg-white rounded-2xl border border-stone-200 shadow-sm hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 ease-in-out"
+          >
+            <Icon className="w-10 h-10 mb-4 text-stone-500 group-hover:text-amber-600 transition-colors duration-300" />
+            <span className="text-lg font-medium text-stone-700 group-hover:text-stone-900 transition-colors duration-300">
+              {label}
+            </span>
+          </a>
+        );
+      };
+
+      // --- Main App Component ---
+      const App = () => {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-stone-50 to-amber-100 text-stone-800 flex flex-col items-center justify-center p-4 sm:p-6">
+            <main className="w-full max-w-4xl text-center">
+              <header className="mb-12">
+                  <div className="inline-block p-4 mb-4 bg-white/60 rounded-full shadow-inner">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-amber-700"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m15.5 8-4.5 4.5-2.5-2.5"/><path d="m15.5 13-4.5 4.5-2.5-2.5"/></svg>
+                  </div>
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-stone-900">
+                  الحديث الشريف
+                </h1>
+                <p className="mt-4 text-lg md:text-xl text-stone-600">
+                  تصحيح وشرح الحديث الشريف
+                </p>
+              </header>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-8 md:gap-10">
+                <NavButton 
+                  href="https://sufyan769.github.io/hadeth-o/index.html" 
+                  label="موسوعة الحديث" 
+                  Icon={BookOpenIcon} 
+                />
+                <NavButton 
+                  href="https://sufyan769.github.io/hadeth/wiki.html" 
+                  label="ويكي الحديث" 
+                  Icon={WikiIcon} 
+                />
+                <NavButton 
+                  href="https://sufyan769.github.io/hadeth/index1.html" 
+                  label="الباحث المتقدم" 
+                  Icon={SearchIcon} 
+                />
+              </div>
+            </main>
+
+            <footer className="mt-12 text-center text-stone-500 text-sm">
+              <p>
+                تم التصميم لتقديم وصول سهل وميسر لعلوم الحديث الشريف.
+              </p>
+            </footer>
+          </div>
+        );
+      };
+      
+      const rootElement = document.getElementById('root');
+      const root = ReactDOM.createRoot(rootElement);
+      root.render(
+        <React.StrictMode>
+          <App />
+        </React.StrictMode>
+      );
+    </script>
   </body>
 </html>
