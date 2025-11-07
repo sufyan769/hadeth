@@ -235,20 +235,21 @@
             }
         };
         
-        // --- FULL CATEGORY LOGIC ---
-        const fetchAndRenderFullCategory = async (category, currentHadithId, container) => {
+        // --- FULL SIMILAR HADITHS LOGIC ---
+        const fetchAndRenderAllSimilar = async (hadithText, currentHadithId, container) => {
             container.innerHTML = `<div class="flex justify-center items-center p-4"><div class="w-6 h-6 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div></div>`;
             
-            const ORDS_API_CATEGORY_BASE_URL = "https://g85b062bd5c6cb1-fatwaproject.adb.me-dubai-1.oraclecloudapps.com/ords/SUFEAN/hadith/categories";
-
             try {
-                const response = await fetch(`${ORDS_API_CATEGORY_BASE_URL}/${encodeURIComponent(category)}`);
-                if (!response.ok) throw new Error('Network response was not ok');
+                if (typeof algoliasearch === 'undefined') {
+                    throw new Error('Algolia client not loaded.');
+                }
+                const client = algoliasearch(ALGOLIA_APP_ID, ALGOLIA_SEARCH_KEY);
+                const index = client.initIndex(ALGOLIA_INDEX_NAME);
 
-                const data = await response.json();
-                const allHadiths = data.items;
-                
-                const otherHadiths = allHadiths.filter(h => h.id != currentHadithId);
+                const searchText = hadithText.substring(0, 250);
+                const { hits } = await index.search(searchText, { hitsPerPage: 50 });
+
+                const otherHadiths = hits.filter(h => h.objectID != currentHadithId);
 
                 if (otherHadiths.length > 0) {
                     const hadithsHtml = otherHadiths.map(h => {
@@ -265,20 +266,22 @@
 
                         return `
                             <div class="py-6 border-b border-gray-200 last:border-b-0">
-                                <p class="font-bold text-lg mb-4 whitespace-pre-wrap">${sanitizeHTML(h.hadith_text)}</p>
-                                ${metadataHtml ? `<div class="text-sm text-gray-700 space-y-1">${metadataHtml}</div>` : ''}
+                                <a href="./details.html?id=${h.objectID}">
+                                    <p class="font-bold text-lg mb-4 whitespace-pre-wrap">${sanitizeHTML(h.text)}</p>
+                                    ${metadataHtml ? `<div class="text-sm text-gray-700 space-y-1">${metadataHtml}</div>` : ''}
+                                </a>
                             </div>
                         `;
                     }).join('');
                     container.innerHTML = `
-                        <h3 class="text-xl font-bold mt-6 mb-2">جميع الأحاديث في تصنيف "${sanitizeHTML(category)}"</h3>
+                        <h3 class="text-xl font-bold mt-6 mb-2">جميع الأحاديث المشابهة</h3>
                         <div>${hadithsHtml}</div>
                     `;
                 } else {
-                    container.innerHTML = `<p class="text-sm text-gray-600 mt-2">لا توجد أحاديث أخرى في هذا التصنيف.</p>`;
+                    container.innerHTML = `<p class="text-sm text-gray-600 mt-2">لا توجد أحاديث أخرى مشابهة.</p>`;
                 }
             } catch (err) {
-                console.error("Failed to fetch full category hadiths:", err);
+                console.error("Failed to fetch all similar hadiths:", err);
                 container.innerHTML = `<p class="text-sm text-red-500 mt-2">تعذر تحميل قائمة الأحاديث الكاملة.</p>`;
             }
         };
@@ -348,7 +351,7 @@
                         
                         <h2 class="text-2xl font-bold mt-10">أحاديث ذات صلة</h2>
                         <div id="related-hadiths-container"></div>
-                        <div id="full-category-container" class="mt-4"></div>
+                        <div id="more-results-container" class="mt-4"></div>
 
                         ${categoriesHtml ? `
                         <h3 class="text-xl font-bold mt-10">تصنيفات</h3>
@@ -362,21 +365,13 @@
 
             fetchAndRenderRelatedHadiths(hadith, id);
             
-            const fullCategoryContainer = document.getElementById('full-category-container');
-            if (fullCategoryContainer && hadith.categories) {
-                const primaryCategoryGroup = hadith.categories.split('|')[0].trim();
-                if (primaryCategoryGroup) {
-                    const categoryParts = primaryCategoryGroup.split(' - ');
-                    const categoryToFetch = categoryParts[categoryParts.length - 1].trim();
-                    
-                    if (categoryToFetch) {
-                        fullCategoryContainer.innerHTML = `<button id="show-all-btn" class="action-button">عرض الكل</button>`;
-                        const showAllBtn = document.getElementById('show-all-btn');
-                        showAllBtn.addEventListener('click', () => {
-                            fetchAndRenderFullCategory(categoryToFetch, id, fullCategoryContainer);
-                        }, { once: true });
-                    }
-                }
+            const moreResultsContainer = document.getElementById('more-results-container');
+            if (moreResultsContainer && hadith.text) {
+                moreResultsContainer.innerHTML = `<button id="show-all-btn" class="action-button">عرض الكل</button>`;
+                const showAllBtn = document.getElementById('show-all-btn');
+                showAllBtn.addEventListener('click', () => {
+                    fetchAndRenderAllSimilar(hadith.text, id, moreResultsContainer);
+                }, { once: true });
             }
         };
 
