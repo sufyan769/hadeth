@@ -9,9 +9,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Reem+Kufi+Fun:wght@400..700&display=swap" rel="stylesheet">
     <style>
       body {
         font-family: 'Tajawal', sans-serif;
+      }
+      .font-reem-kufi {
+        font-family: 'Reem Kufi Fun', sans-serif;
       }
     </style>
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
@@ -58,19 +62,30 @@
         </svg>
       );
 
+      const QuestionIcon = (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+      );
+
       // --- Navigation Button Component ---
-      const NavButton = ({ href, label, Icon }) => {
+      const NavButton = ({ href, label, Icon, description }) => {
         return (
           <a
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex flex-col items-center justify-center w-full sm:w-56 h-40 p-6 bg-stone-50/50 hover:bg-white rounded-2xl border border-stone-200 shadow-sm hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 ease-in-out"
+            className="group flex flex-col items-center justify-center w-full sm:w-56 h-48 p-6 bg-stone-50/50 hover:bg-white rounded-2xl border border-stone-200 shadow-sm hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 ease-in-out"
           >
-            <Icon className="w-10 h-10 mb-4 text-stone-500 group-hover:text-amber-600 transition-colors duration-300" />
-            <span className="text-lg font-medium text-stone-700 group-hover:text-stone-900 transition-colors duration-300">
+            <Icon className="w-10 h-10 mb-3 text-stone-500 group-hover:text-amber-600 transition-colors duration-300" />
+            <span className="text-lg font-medium text-stone-700 group-hover:text-stone-900 transition-colors duration-300 text-center">
               {label}
             </span>
+            {description && (
+                <p className="mt-2 text-xs text-center text-stone-500">{description}</p>
+            )}
           </a>
         );
       };
@@ -84,15 +99,15 @@
                   <div className="inline-block p-4 mb-4 bg-white/60 rounded-full shadow-inner">
                       <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-amber-700"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m15.5 8-4.5 4.5-2.5-2.5"/><path d="m15.5 13-4.5 4.5-2.5-2.5"/></svg>
                   </div>
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-stone-900">
-                  الحديث الشريف
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-stone-900 font-reem-kufi">
+                  اَلْحَدِيثُ الشَّرِيفُ
                 </h1>
                 <p className="mt-4 text-lg md:text-xl text-stone-600">
                   تصحيح وشرح الحديث الشريف
                 </p>
               </header>
 
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-8 md:gap-10">
+              <div className="flex flex-wrap items-stretch justify-center gap-6 sm:gap-8">
                 <NavButton 
                   href="https://sufyan769.github.io/hadeth-o/index.html" 
                   label="موسوعة الحديث" 
@@ -105,8 +120,14 @@
                 />
                 <NavButton 
                   href="https://sufyan769.github.io/hadeth/index1.html" 
-                  label="الباحث المتقدم" 
+                  label="الباحث المتقدم للاحاديث" 
                   Icon={SearchIcon} 
+                />
+                <NavButton 
+                  href="https://fatawa-seo-eanp.vercel.app/" 
+                  label="هل يجوز" 
+                  Icon={QuestionIcon}
+                  description="فتاوى اسلامية سؤال و جواب على منهج السلف"
                 />
               </div>
             </main>
