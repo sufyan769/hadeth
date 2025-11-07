@@ -227,13 +227,26 @@
                 
                 if (!hits || hits.length === 0) throw new Error("No featured hadiths found.");
                 
-                const hadithsHTML = hits.map(hadith => `
-                    <div class="search-result-item">
-                        <a href="./details.html?id=${hadith.objectID}">
-                            <p>${hadith.text}</p>
-                        </a>
-                    </div>
-                `).join('');
+                const hadithsHTML = hits.map(hadith => {
+                    const muhaddith = hadith.muhaddith || '';
+                    const source = hadith.source || '';
+                    const hukm = hadith.hukm || '';
+                    const rawi = hadith.rawi || '';
+
+                    return `
+                        <div class="search-result-item">
+                            <a href="./details.html?id=${hadith.objectID}" class="block p-2 rounded transition-colors hover:bg-gray-50">
+                                <p class="text-lg text-stone-800 leading-relaxed">${sanitizeHTML(hadith.text)}</p>
+                                <div class="mt-3 text-sm text-gray-600 flex items-center flex-wrap gap-x-4 gap-y-1">
+                                    ${muhaddith ? `<span><strong>المحدث:</strong> ${sanitizeHTML(muhaddith)}</span>` : ''}
+                                    ${source ? `<span><strong>المصدر:</strong> ${sanitizeHTML(source)}</span>` : ''}
+                                    ${rawi ? `<span><strong>الراوي:</strong> ${sanitizeHTML(rawi)}</span>` : ''}
+                                    ${hukm ? `<span class="font-bold text-green-700"><strong>الحكم:</strong> ${sanitizeHTML(hukm)}</span>` : ''}
+                                </div>
+                            </a>
+                        </div>
+                    `;
+                }).join('');
 
                 container.innerHTML = `
                     <h2 class="text-2xl font-bold">محتويات مختارة</h2>
@@ -248,12 +261,23 @@
         const renderSearchResults = (hits, container) => {
             const resultsHTML = hits.map(hit => {
                 const content = hit._highlightResult?.text.value || hit.text;
+                const muhaddith = hit.muhaddith || '';
+                const source = hit.source || '';
+                const hukm = hit.hukm || '';
+                const rawi = hit.rawi || '';
+
                 return `
                   <div class="search-result-item">
-                    <a href="./details.html?id=${hit.objectID}">
-                      <p>
+                    <a href="./details.html?id=${hit.objectID}" class="block p-2 rounded transition-colors hover:bg-gray-50">
+                      <p class="text-lg text-stone-800 leading-relaxed">
                         ${content.replace(/<em>/g, '<em class="bg-yellow-200 not-italic font-semibold">')}
                       </p>
+                      <div class="mt-3 text-sm text-gray-600 flex items-center flex-wrap gap-x-4 gap-y-1">
+                          ${muhaddith ? `<span><strong>المحدث:</strong> ${sanitizeHTML(muhaddith)}</span>` : ''}
+                          ${source ? `<span><strong>المصدر:</strong> ${sanitizeHTML(source)}</span>` : ''}
+                          ${rawi ? `<span><strong>الراوي:</strong> ${sanitizeHTML(rawi)}</span>` : ''}
+                          ${hukm ? `<span class="font-bold text-green-700"><strong>الحكم:</strong> ${sanitizeHTML(hukm)}</span>` : ''}
+                      </div>
                     </a>
                   </div>`;
             }).join('');
