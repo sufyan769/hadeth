@@ -259,7 +259,20 @@
             }
             showLoader(resultsContainer);
             try {
-                const { hits } = await index.search(trimmedQuery, { hitsPerPage: 50 });
+                // First, attempt a search for the exact phrase by wrapping the query in quotes.
+                // This gives priority to exact matches.
+                let response = await index.search(`"${trimmedQuery}"`, {
+                    hitsPerPage: 50,
+                    advancedSyntax: true, // Enable quote syntax for exact matching.
+                });
+
+                // If the exact phrase search yields no results, fall back to a standard, more flexible search.
+                if (response.hits.length === 0) {
+                    response = await index.search(trimmedQuery, { hitsPerPage: 50 });
+                }
+
+                const { hits } = response;
+
                 if (hits.length === 0) {
                     resultsContainer.innerHTML = `<div class="text-center py-10 px-4 border border-gray-200"><p>لم يتم العثور على نتائج للكلمة: "${sanitizeHTML(trimmedQuery)}"</p></div>`;
                 } else {
