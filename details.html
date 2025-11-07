@@ -200,7 +200,7 @@
         // --- RELATED HADITHS LOGIC ---
         const fetchAndRenderRelatedHadiths = async (hadith, hadithId) => {
             const container = document.getElementById('related-hadiths-container');
-            if (!container || !hadith.text) return;
+            if (!container || !hadith.text) return [];
 
             container.innerHTML = `<div class="flex justify-center items-center p-4"><div class="w-6 h-6 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div></div>`;
             
@@ -211,7 +211,6 @@
                 const client = algoliasearch(ALGOLIA_APP_ID, ALGOLIA_SEARCH_KEY);
                 const index = client.initIndex(ALGOLIA_INDEX_NAME);
 
-                // Truncate the text for a more stable and relevant search
                 const searchText = hadith.text.substring(0, 250);
                 const { hits } = await index.search(searchText, { hitsPerPage: 6 });
 
@@ -229,66 +228,68 @@
                 } else {
                     container.innerHTML = `<p class="text-sm text-gray-600">لا توجد أحاديث ذات صلة.</p>`;
                 }
+                return relatedHits;
             } catch (err) {
                 console.error("Failed to fetch related hadiths:", err);
                 container.innerHTML = `<p class="text-sm text-red-500">تعذر تحميل الأحاديث ذات الصلة.</p>`;
+                return [];
             }
         };
         
-        // --- FULL SIMILAR HADITHS LOGIC ---
-        const fetchAndRenderAllSimilar = async (hadithText, currentHadithId, container) => {
+        // --- FULL NARRATIONS LOGIC ---
+        const fetchAndRenderFullNarrations = async (ids, container) => {
             container.innerHTML = `<div class="flex justify-center items-center p-4"><div class="w-6 h-6 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div></div>`;
-            
+
             try {
-                if (typeof algoliasearch === 'undefined') {
-                    throw new Error('Algolia client not loaded.');
-                }
-                const client = algoliasearch(ALGOLIA_APP_ID, ALGOLIA_SEARCH_KEY);
-                const index = client.initIndex(ALGOLIA_INDEX_NAME);
+                const fetchPromises = ids.map(id =>
+                    fetch(`${ORDS_API_BASE_URL}/${id}`).then(res => {
+                        if (!res.ok) throw new Error(`Failed to fetch hadith ${id}`);
+                        return res.json();
+                    })
+                );
 
-                const searchText = hadithText.substring(0, 250);
-                const { hits } = await index.search(searchText, { hitsPerPage: 50 });
+                const results = await Promise.all(fetchPromises);
+                const hadiths = results.map(res => res.items[0]).filter(Boolean);
 
-                const otherHadiths = hits.filter(h => h.objectID != currentHadithId);
-
-                if (otherHadiths.length > 0) {
-                    const hadithsHtml = otherHadiths.map(h => {
+                if (hadiths.length > 0) {
+                    const hadithsHtml = hadiths.map(h => {
                         const metadataPoints = [
+                            { label: 'الراوي', value: h.rawi },
                             { label: 'المحدث', value: h.muhaddith },
                             { label: 'المصدر', value: h.source },
+                            { label: 'الصفحة/الرقم', value: h.page_number },
                             { label: 'الحكم', value: h.hukm },
+                            { label: 'التخريج', value: h.takhrij },
                         ];
                         
                         const metadataHtml = metadataPoints
                             .filter(item => item.value)
-                            .map(item => `<p><strong>${item.label}:</strong> ${sanitizeHTML(item.value)}</p>`)
+                            .map(item => `<tr><th class="pr-4 py-1 text-right font-bold align-top">${item.label}</th><td class="py-1 align-top">${sanitizeHTML(String(item.value))}</td></tr>`)
                             .join('');
 
                         return `
                             <div class="py-6 border-b border-gray-200 last:border-b-0">
-                                <a href="./details.html?id=${h.objectID}">
-                                    <p class="font-bold text-lg mb-4 whitespace-pre-wrap">${sanitizeHTML(h.text)}</p>
-                                    ${metadataHtml ? `<div class="text-sm text-gray-700 space-y-1">${metadataHtml}</div>` : ''}
-                                </a>
+                                <p class="font-bold text-lg mb-4 whitespace-pre-wrap">${sanitizeHTML(h.text)}</p>
+                                ${metadataHtml ? `<table class="text-sm text-gray-700 w-full">${metadataHtml}</table>` : ''}
                             </div>
                         `;
                     }).join('');
+                    
                     container.innerHTML = `
-                        <h3 class="text-xl font-bold mt-6 mb-2">جميع الأحاديث المشابهة</h3>
+                        <h3 class="text-xl font-bold mt-6 mb-2">جميع الروايات المشابهة</h3>
                         <div>${hadithsHtml}</div>
                     `;
                 } else {
-                    container.innerHTML = `<p class="text-sm text-gray-600 mt-2">لا توجد أحاديث أخرى مشابهة.</p>`;
+                    container.innerHTML = `<p class="text-sm text-gray-600 mt-2">لم يتم العثور على تفاصيل الروايات.</p>`;
                 }
             } catch (err) {
-                console.error("Failed to fetch all similar hadiths:", err);
-                container.innerHTML = `<p class="text-sm text-red-500 mt-2">تعذر تحميل قائمة الأحاديث الكاملة.</p>`;
+                console.error("Failed to fetch all narrations:", err);
+                container.innerHTML = `<p class="text-sm text-red-500 mt-2">تعذر تحميل قائمة الروايات الكاملة.</p>`;
             }
         };
 
-
         // --- HADITH DETAILS LOGIC ---
-        const renderHadith = (hadith, id) => {
+        const renderHadith = async (hadith, id) => {
             document.title = `موسوعة الحديث - ${(hadith.text || '').substring(0, 50)}...`;
 
             const categoriesHtml = (hadith.categories || '')
@@ -318,9 +319,7 @@
             let fullSharh = '';
             for (let i = 1; i <= 6; i++) {
                 if (hadith[`sharh${i}`]) {
-                    // Replace escaped newlines with actual newlines to be rendered correctly.
                     let sharhPart = String(hadith[`sharh${i}`]).replace(/\\n/g, '\n');
-                    // Add a newline after every period or comma for better readability.
                     sharhPart = sharhPart.replace(/([.,،])/g, '$1\n');
                     fullSharh += sharhPart + ' ';
                 }
@@ -363,14 +362,16 @@
             loaderContainer.classList.add('hidden');
             detailsContainer.classList.remove('hidden');
 
-            fetchAndRenderRelatedHadiths(hadith, id);
+            const relatedHits = await fetchAndRenderRelatedHadiths(hadith, id);
             
             const moreResultsContainer = document.getElementById('more-results-container');
-            if (moreResultsContainer && hadith.text) {
-                moreResultsContainer.innerHTML = `<button id="show-all-btn" class="action-button">عرض الكل</button>`;
+            const relatedIds = relatedHits.map(hit => hit.objectID);
+
+            if (moreResultsContainer && relatedIds.length > 0) {
+                moreResultsContainer.innerHTML = `<button id="show-all-btn" class="action-button">عرض كل الروايات المشابهة</button>`;
                 const showAllBtn = document.getElementById('show-all-btn');
                 showAllBtn.addEventListener('click', () => {
-                    fetchAndRenderAllSimilar(hadith.text, id, moreResultsContainer);
+                    fetchAndRenderFullNarrations(relatedIds, moreResultsContainer);
                 }, { once: true });
             }
         };
@@ -395,7 +396,7 @@
                 const hadith = data.items[0];
                 if (hadith) {
                     currentHadithData = hadith;
-                    renderHadith(hadith, id);
+                    await renderHadith(hadith, id);
                 } else {
                     showError("لم يتم العثور على الحديث.");
                 }
@@ -423,9 +424,7 @@
                 let fullSharh = '';
                 for (let i = 1; i <= 6; i++) {
                     if (currentHadithData[`sharh${i}`]) {
-                        // Also apply newline replacement here for the copied text
                         let sharhPart = String(currentHadithData[`sharh${i}`]).replace(/\\n/g, '\n');
-                        // Add a newline after every period or comma for the copied text.
                         sharhPart = sharhPart.replace(/([.,،])/g, '$1\n');
                         fullSharh += sharhPart + ' ';
                     }
