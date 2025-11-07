@@ -259,17 +259,12 @@
             }
             showLoader(resultsContainer);
             try {
-                // First, attempt a search for the exact phrase by wrapping the query in quotes.
-                // This gives priority to exact matches.
-                let response = await index.search(`"${trimmedQuery}"`, {
+                const response = await index.search(trimmedQuery, {
                     hitsPerPage: 50,
-                    advancedSyntax: true, // Enable quote syntax for exact matching.
+                    typoTolerance: false,
+                    removeStopWords: false,
+                    advancedSyntax: false
                 });
-
-                // If the exact phrase search yields no results, fall back to a standard, more flexible search.
-                if (response.hits.length === 0) {
-                    response = await index.search(trimmedQuery, { hitsPerPage: 50 });
-                }
 
                 const { hits } = response;
 
