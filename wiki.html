@@ -59,6 +59,7 @@
       padding: 0.5rem 1rem;
       transition: background-color .15s ease-in-out, border-color .15s ease-in-out;
       border-radius: 0;
+      border-right: none;
     }
     .search-button:hover {
       background-color: #e9ecef;
@@ -118,17 +119,23 @@
                 <button id="font-size-toggle-btn" class="action-button">حجم الخط</button>
             </div>
         </div>
-        <form id="searchForm" class="flex items-center w-full">
-            <input
-              id="searchBox"
-              type="text"
-              placeholder="ابحث في الأحاديث..."
-              class="search-input"
-              autofocus
-            />
-            <button type="submit" class="search-button flex-shrink-0">
-              بحث
-            </button>
+        <form id="searchForm" class="flex flex-col items-start w-full">
+            <div class="flex items-center w-full">
+                <input
+                  id="searchBox"
+                  type="text"
+                  placeholder="ابحث في الأحاديث..."
+                  class="search-input flex-grow"
+                  autofocus
+                />
+                <button type="submit" class="search-button flex-shrink-0">
+                  بحث
+                </button>
+            </div>
+            <div class="flex items-center gap-2 mt-2">
+                <button type="button" id="search-all-words-btn" class="action-button">بحث كل الكلمات</button>
+                <button type="button" id="search-exact-match-btn" class="action-button">بحث عن النص المطابق</button>
+            </div>
         </form>
       </header>
     
@@ -158,6 +165,8 @@
         const resultsContainer = document.getElementById('results-container');
         const fontSizeToggleBtn = document.getElementById('font-size-toggle-btn');
         const backBtn = document.getElementById('back-btn');
+        const searchAllWordsBtn = document.getElementById('search-all-words-btn');
+        const searchExactMatchBtn = document.getElementById('search-exact-match-btn');
 
         // --- ALGOLIA CLIENT ---
         if (typeof algoliasearch === 'undefined') {
@@ -169,7 +178,7 @@
         const index = client.initIndex(ALGOLIA_INDEX_NAME);
 
         // --- HELPERS ---
-        const sanitizeHTML = (str) => str.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const sanitizeHTML = (str) => String(str).replace(/</g, "&lt;").replace(/>/g, "&gt;");
         
         const showLoader = (container) => {
             container.innerHTML = `
@@ -251,25 +260,41 @@
             container.innerHTML = `<div>${resultsHTML}</div>`;
         };
 
-        const runSearch = async (query) => {
+        const runSearch = async (query, searchType = 'smart') => {
             const trimmedQuery = query.trim();
             if (!trimmedQuery) {
                 renderFeaturedHadiths(resultsContainer);
                 return;
             }
             showLoader(resultsContainer);
+
+            let searchOptions = {
+                hitsPerPage: 50,
+            };
+            let finalQuery = trimmedQuery;
+
+            if (searchType === 'all_words') {
+                searchOptions.queryType = 'prefixAll'; // All query words are mandatory
+            } else if (searchType === 'exact') {
+                searchOptions.advancedSyntax = true; // Search for the exact phrase
+                finalQuery = `"${trimmedQuery.replace(/"/g, '\\"')}"`; // Double quotes for exact match
+            } else { // 'smart' is the default (stricter search)
+                searchOptions.typoTolerance = false;
+                searchOptions.removeStopWords = false;
+                searchOptions.advancedSyntax = false;
+            }
+
             try {
-                const response = await index.search(query, {
-                advancedSyntax: true,
-                exactOnSingleWordQuery: "word",
-                removeWordsIfNoResults: "none",
-                  });
-
-
-                const { hits } = response;
+                const { hits } = await index.search(finalQuery, searchOptions);
 
                 if (hits.length === 0) {
-                    resultsContainer.innerHTML = `<div class="text-center py-10 px-4 border border-gray-200"><p>لم يتم العثور على نتائج للكلمة: "${sanitizeHTML(trimmedQuery)}"</p></div>`;
+                    let message = `لم يتم العثور على نتائج للبحث عن: "${sanitizeHTML(trimmedQuery)}"`;
+                     if (searchType === 'exact') {
+                        message = `لم يتم العثور على تطابق تام للنص: "${sanitizeHTML(trimmedQuery)}"`;
+                    } else if (searchType === 'all_words') {
+                        message = `لم يتم العثور على نتائج تحتوي على كل الكلمات: "${sanitizeHTML(trimmedQuery)}"`;
+                    }
+                    resultsContainer.innerHTML = `<div class="text-center py-10 px-4 border border-gray-200"><p>${message}</p></div>`;
                 } else {
                     renderSearchResults(hits, resultsContainer);
                 }
@@ -284,7 +309,17 @@
             e.preventDefault();
             const query = searchBox.value.trim();
             sessionStorage.setItem('hadithSearchQuery', query);
-            runSearch(query);
+            runSearch(query, 'smart'); // Default search is 'smart'
+        });
+
+        searchAllWordsBtn.addEventListener('click', () => {
+            const query = searchBox.value.trim();
+            runSearch(query, 'all_words');
+        });
+
+        searchExactMatchBtn.addEventListener('click', () => {
+            const query = searchBox.value.trim();
+            runSearch(query, 'exact');
         });
 
         // --- INITIALIZATION ---
@@ -294,7 +329,7 @@
         const savedQuery = sessionStorage.getItem('hadithSearchQuery');
         if (savedQuery) {
             searchBox.value = savedQuery;
-            runSearch(savedQuery);
+            runSearch(savedQuery, 'smart'); // Default to smart search on page load
             sessionStorage.removeItem('hadithSearchQuery');
         } else {
             renderFeaturedHadiths(resultsContainer);
