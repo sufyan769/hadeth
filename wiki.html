@@ -259,12 +259,12 @@
             }
             showLoader(resultsContainer);
             try {
-                const response = await index.search(trimmedQuery, {
-                    hitsPerPage: 50,
-                    typoTolerance: false,
-                    removeStopWords: false,
-                    advancedSyntax: false
-                });
+                const response = await index.search(query, {
+                advancedSyntax: true,
+                exactOnSingleWordQuery: "word",
+                removeWordsIfNoResults: "none",
+                  });
+
 
                 const { hits } = response;
 
