@@ -169,7 +169,7 @@
         let currentHadithData = null;
 
         // --- HELPERS ---
-        const sanitizeHTML = (str) => str.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const sanitizeHTML = (str) => String(str).replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
         // --- FONT SIZE CONTROL ---
         const applyFontSize = (size) => {
@@ -232,6 +232,54 @@
             } catch (err) {
                 console.error("Failed to fetch related hadiths:", err);
                 container.innerHTML = `<p class="text-sm text-red-500">تعذر تحميل الأحاديث ذات الصلة.</p>`;
+            }
+        };
+        
+        // --- FULL CATEGORY LOGIC ---
+        const fetchAndRenderFullCategory = async (category, currentHadithId, container) => {
+            container.innerHTML = `<div class="flex justify-center items-center p-4"><div class="w-6 h-6 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div></div>`;
+            
+            const ORDS_API_CATEGORY_BASE_URL = "https://g85b062bd5c6cb1-fatwaproject.adb.me-dubai-1.oraclecloudapps.com/ords/SUFEAN/hadith/categories";
+
+            try {
+                const response = await fetch(`${ORDS_API_CATEGORY_BASE_URL}/${encodeURIComponent(category)}`);
+                if (!response.ok) throw new Error('Network response was not ok');
+
+                const data = await response.json();
+                const allHadiths = data.items;
+                
+                const otherHadiths = allHadiths.filter(h => h.id != currentHadithId);
+
+                if (otherHadiths.length > 0) {
+                    const hadithsHtml = otherHadiths.map(h => {
+                        const metadataPoints = [
+                            { label: 'المحدث', value: h.muhaddith },
+                            { label: 'المصدر', value: h.source },
+                            { label: 'الحكم', value: h.hukm },
+                        ];
+                        
+                        const metadataHtml = metadataPoints
+                            .filter(item => item.value)
+                            .map(item => `<p><strong>${item.label}:</strong> ${sanitizeHTML(item.value)}</p>`)
+                            .join('');
+
+                        return `
+                            <div class="py-6 border-b border-gray-200 last:border-b-0">
+                                <p class="font-bold text-lg mb-4 whitespace-pre-wrap">${sanitizeHTML(h.hadith_text)}</p>
+                                ${metadataHtml ? `<div class="text-sm text-gray-700 space-y-1">${metadataHtml}</div>` : ''}
+                            </div>
+                        `;
+                    }).join('');
+                    container.innerHTML = `
+                        <h3 class="text-xl font-bold mt-6 mb-2">جميع الأحاديث في تصنيف "${sanitizeHTML(category)}"</h3>
+                        <div>${hadithsHtml}</div>
+                    `;
+                } else {
+                    container.innerHTML = `<p class="text-sm text-gray-600 mt-2">لا توجد أحاديث أخرى في هذا التصنيف.</p>`;
+                }
+            } catch (err) {
+                console.error("Failed to fetch full category hadiths:", err);
+                container.innerHTML = `<p class="text-sm text-red-500 mt-2">تعذر تحميل قائمة الأحاديث الكاملة.</p>`;
             }
         };
 
@@ -300,6 +348,7 @@
                         
                         <h2 class="text-2xl font-bold mt-10">أحاديث ذات صلة</h2>
                         <div id="related-hadiths-container"></div>
+                        <div id="full-category-container" class="mt-4"></div>
 
                         ${categoriesHtml ? `
                         <h3 class="text-xl font-bold mt-10">تصنيفات</h3>
@@ -312,6 +361,23 @@
             detailsContainer.classList.remove('hidden');
 
             fetchAndRenderRelatedHadiths(hadith, id);
+            
+            const fullCategoryContainer = document.getElementById('full-category-container');
+            if (fullCategoryContainer && hadith.categories) {
+                const primaryCategoryGroup = hadith.categories.split('|')[0].trim();
+                if (primaryCategoryGroup) {
+                    const categoryParts = primaryCategoryGroup.split(' - ');
+                    const categoryToFetch = categoryParts[categoryParts.length - 1].trim();
+                    
+                    if (categoryToFetch) {
+                        fullCategoryContainer.innerHTML = `<button id="show-all-btn" class="action-button">عرض الكل</button>`;
+                        const showAllBtn = document.getElementById('show-all-btn');
+                        showAllBtn.addEventListener('click', () => {
+                            fetchAndRenderFullCategory(categoryToFetch, id, fullCategoryContainer);
+                        }, { once: true });
+                    }
+                }
+            }
         };
 
         const showError = (message) => {
