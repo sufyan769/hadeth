@@ -41,20 +41,16 @@
       const { useState, useCallback } = React;
 
       // --- Gemini Service ---
-      // This setup assumes the execution environment provides 'process.env.API_KEY'.
-      const process = { env: { API_KEY: parent.VITE_API_KEY || '' } };
       const { GoogleGenAI } = await import("@google/genai");
-
+      
       const API_KEY = process.env.API_KEY;
-      if (!API_KEY) {
-        console.warn("API_KEY is not set. AI functionality will be disabled.");
-      }
-      const ai = new GoogleGenAI({ apiKey: API_KEY });
+      const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
 
       async function analyzeHadith(hadithText) {
-        if (!API_KEY) {
-          throw new Error("API Key is not configured.");
+        if (!ai) {
+          throw new Error("API key is not configured.");
         }
+
         const model = 'gemini-2.5-flash';
         
         const prompt = `
@@ -138,6 +134,13 @@
           <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
         </svg>
       );
+
+      const AlertTriangleIcon = (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" {...props}>
+          <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+          <line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+      );
       
       // --- NavButton Component ---
       const NavButton = ({ href, label, Icon, description }) => {
@@ -156,16 +159,18 @@
         const [analysisResult, setAnalysisResult] = useState('');
         const [isLoading, setIsLoading] = useState(false);
         const [error, setError] = useState(null);
+        const isApiKeyAvailable = !!API_KEY;
 
         const handleAnalyzeClick = useCallback(async () => {
+          if (!isApiKeyAvailable) {
+            setError('مفتاح API غير مهيأ. لا يمكن المتابعة.');
+            return;
+          }
           if (!hadithText.trim()) {
             setError('الرجاء إدخال نص الحديث أولاً.');
             return;
           }
-          if (!API_KEY) {
-              setError('مفتاح API غير مهيأ. لا يمكن المتابعة.');
-              return;
-          }
+
           setIsLoading(true);
           setError(null);
           setAnalysisResult('');
@@ -179,7 +184,7 @@
           } finally {
             setIsLoading(false);
           }
-        }, [hadithText]);
+        }, [hadithText, isApiKeyAvailable]);
 
         return (
           <div className="min-h-screen bg-gradient-to-br from-stone-50 to-amber-100 text-stone-800 flex flex-col items-center justify-center p-4 sm:p-6">
@@ -196,18 +201,28 @@
               </header>
 
               <section className="mb-12">
+                {!isApiKeyAvailable && (
+                  <div className="mb-6 p-4 bg-yellow-100 border-r-4 border-yellow-500 text-yellow-800 rounded-lg flex items-center text-right" role="alert">
+                    <AlertTriangleIcon className="w-8 h-8 ml-4 text-yellow-600 flex-shrink-0" />
+                    <div>
+                      <p className="font-bold">مفتاح API غير متوفر</p>
+                      <p>وظيفة التحليل معطلة. يرجى التأكد من تشغيل هذا التطبيق في بيئة تم تكوينها بشكل صحيح مع مفتاح Google AI API.</p>
+                    </div>
+                  </div>
+                )}
                 <div className="bg-white/70 backdrop-blur-sm p-6 sm:p-8 rounded-2xl shadow-lg border border-stone-200">
                   <h2 className="text-2xl font-bold font-reem-kufi text-stone-800 mb-4">أدخل الحديث للتحليل</h2>
                   <textarea
-                    className="w-full h-32 p-4 text-lg bg-stone-50 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition duration-300 resize-none"
-                    placeholder="اكتب الحديث هنا..."
+                    className="w-full h-32 p-4 text-lg bg-stone-50 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition duration-300 resize-none disabled:bg-stone-200 disabled:cursor-not-allowed"
+                    placeholder={!isApiKeyAvailable ? "وظيفة التحليل معطلة بسبب عدم توفر مفتاح API" : "اكتب الحديث هنا..."}
                     value={hadithText}
                     onChange={(e) => setHadithText(e.target.value)}
                     dir="rtl"
+                    disabled={!isApiKeyAvailable}
                   ></textarea>
                   <button
                     onClick={handleAnalyzeClick}
-                    disabled={isLoading}
+                    disabled={isLoading || !isApiKeyAvailable}
                     className="mt-4 w-full sm:w-auto inline-flex items-center justify-center px-8 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-lg rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 disabled:bg-stone-400 disabled:cursor-not-allowed disabled:transform-none"
                   >
                     {isLoading ? (
@@ -241,7 +256,7 @@
               )}
 
               <section>
-                <h2 className="text-2xl font-bold font-reem-kufi text-stone-800 mb-8">روابط مفيدة</h2>
+                <h2 className="text-2xl font-bold font-reem-kufi text-stone-800 mb-8">روابط الموقع </h2>
                 <div className="flex flex-wrap items-stretch justify-center gap-6 sm:gap-8">
                   <NavButton href="https://sufyan769.github.io/hadeth-o/index.html" label="موسوعة الحديث" Icon={BookOpenIcon} />
                   <NavButton href="https://sufyan769.github.io/hadeth/wiki.html" label="ويكي الحديث" Icon={WikiIcon} />
