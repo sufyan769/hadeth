@@ -17,23 +17,81 @@
       .font-reem-kufi {
         font-family: 'Reem Kufi Fun', sans-serif;
       }
+      .prose ul { list-style-type: disc; padding-right: 2rem; }
+      .prose h3 { font-weight: bold; margin-top: 1.5em; margin-bottom: 0.5em; }
     </style>
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script type="importmap">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script type="importmap">
 {
   "imports": {
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.1",
     "react": "https://aistudiocdn.com/react@^19.2.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "react/": "https://aistudiocdn.com/react@^19.2.0/"
   }
 }
 </script>
-</head>
+  </head>
   <body>
     <div id="root"></div>
-    <script type="text/babel">
+    <script type="text/babel" data-type="module">
+      const { useState, useCallback } = React;
+
+      // --- Gemini Service ---
+      // This setup assumes the execution environment provides 'process.env.API_KEY'.
+      const process = { env: { API_KEY: parent.VITE_API_KEY || '' } };
+      const { GoogleGenAI } = await import("@google/genai");
+
+      const API_KEY = process.env.API_KEY;
+      if (!API_KEY) {
+        console.warn("API_KEY is not set. AI functionality will be disabled.");
+      }
+      const ai = new GoogleGenAI({ apiKey: API_KEY });
+
+      async function analyzeHadith(hadithText) {
+        if (!API_KEY) {
+          throw new Error("API Key is not configured.");
+        }
+        const model = 'gemini-2.5-flash';
+        
+        const prompt = `
+أنت عالم حديث متخصص وموثوق. لقد تم إعطاؤك الحديث التالي باللغة العربية:
+"${hadithText}"
+
+مهمتك هي تقديم تحليل شامل وموثوق. يرجى تقديم ما يلي باستخدام تنسيق ماركداون واضح ومنظم:
+
+### درجة الحديث وصحة إسناده (التخريج)
+* **المصدر:** اذكر من روى الحديث (مثل البخاري، مسلم، الترمذي، إلخ).
+* **الحكم:** اذكر حكم المحدثين على الحديث (صحيح، حسن، ضعيف، موضوع).
+* **الرقم:** اذكر رقم الحديث في المصدر إن أمكن.
+
+### شرح الحديث
+قدم شرحاً واضحاً وموجزاً لمعنى الحديث. وضح أي مفردات غريبة أو مصطلحات شرعية.
+
+### الفوائد المستنبطة من الحديث
+لخص الدروس والعبر الرئيسية المستفادة من الحديث في نقاط.
+
+### الترجمة الإنجليزية
+قدم ترجمة دقيقة للحديث باللغة الإنجليزية.
+
+تأكد من أن تكون إجابتك منظمة وسهلة القراءة ومفصلة.
+        `;
+
+        try {
+          const response = await ai.models.generateContent({
+            model: model,
+            contents: prompt,
+          });
+          return response.text;
+        } catch (error) {
+          console.error("Error calling Gemini API:", error);
+          throw new Error("Failed to get analysis from Gemini API.");
+        }
+      }
+
       // --- Icon Components ---
       const BookOpenIcon = (props) => (
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -43,111 +101,169 @@
       );
 
       const WikiIcon = (props) => (
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
-              <path d="M12 12l4.95 4.95"/>
-              <path d="M12 12l-4.95 4.95"/>
-              <path d="M12 12V2"/>
-              <path d="M12 12H2"/>
-              <path d="M12 12h10"/>
-              <path d="M12 12l-4.95-4.95"/>
-              <path d="M12 12l4.95-4.95"/>
-          </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+          <path d="M12 12l4.95 4.95"/><path d="M12 12l-4.95 4.95"/><path d="M12 12V2"/>
+          <path d="M12 12H2"/><path d="M12 12h10"/><path d="M12 12l-4.95-4.95"/><path d="M12 12l4.95-4.95"/>
+        </svg>
       );
 
       const SearchIcon = (props) => (
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-          <circle cx="11" cy="11" r="8"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
       );
 
       const QuestionIcon = (props) => (
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-          <circle cx="12" cy="12" r="10"></circle>
-          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          <circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+      );
+      
+      const UsersIcon = (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle>
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
         </svg>
       );
 
-      // --- Navigation Button Component ---
+      const SparklesIcon = (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/>
+        </svg>
+      );
+
+      const LoaderIcon = (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+        </svg>
+      );
+      
+      // --- NavButton Component ---
       const NavButton = ({ href, label, Icon, description }) => {
         return (
-          <a
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex flex-col items-center justify-center w-full sm:w-56 h-48 p-6 bg-stone-50/50 hover:bg-white rounded-2xl border border-stone-200 shadow-sm hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 ease-in-out"
-          >
+          <a href={href} target="_blank" rel="noopener noreferrer" className="group flex flex-col items-center justify-center w-full sm:w-56 h-48 p-6 bg-stone-50/50 hover:bg-white rounded-2xl border border-stone-200 shadow-sm hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 ease-in-out">
             <Icon className="w-10 h-10 mb-3 text-stone-500 group-hover:text-amber-600 transition-colors duration-300" />
-            <span className="text-lg font-medium text-stone-700 group-hover:text-stone-900 transition-colors duration-300 text-center">
-              {label}
-            </span>
-            {description && (
-                <p className="mt-2 text-xs text-center text-stone-500">{description}</p>
-            )}
+            <span className="text-lg font-medium text-stone-700 group-hover:text-stone-900 transition-colors duration-300 text-center">{label}</span>
+            {description && (<p className="mt-2 text-xs text-center text-stone-500">{description}</p>)}
           </a>
         );
       };
 
       // --- Main App Component ---
       const App = () => {
+        const [hadithText, setHadithText] = useState('');
+        const [analysisResult, setAnalysisResult] = useState('');
+        const [isLoading, setIsLoading] = useState(false);
+        const [error, setError] = useState(null);
+
+        const handleAnalyzeClick = useCallback(async () => {
+          if (!hadithText.trim()) {
+            setError('الرجاء إدخال نص الحديث أولاً.');
+            return;
+          }
+          if (!API_KEY) {
+              setError('مفتاح API غير مهيأ. لا يمكن المتابعة.');
+              return;
+          }
+          setIsLoading(true);
+          setError(null);
+          setAnalysisResult('');
+
+          try {
+            const result = await analyzeHadith(hadithText);
+            setAnalysisResult(result);
+          } catch (e) {
+            console.error(e);
+            setError('حدث خطأ أثناء تحليل الحديث. الرجاء المحاولة مرة أخرى.');
+          } finally {
+            setIsLoading(false);
+          }
+        }, [hadithText]);
+
         return (
           <div className="min-h-screen bg-gradient-to-br from-stone-50 to-amber-100 text-stone-800 flex flex-col items-center justify-center p-4 sm:p-6">
             <main className="w-full max-w-4xl text-center">
               <header className="mb-12">
-                  <div className="inline-block p-4 mb-4 bg-white/60 rounded-full shadow-inner">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-amber-700"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m15.5 8-4.5 4.5-2.5-2.5"/><path d="m15.5 13-4.5 4.5-2.5-2.5"/></svg>
-                  </div>
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-stone-900 font-reem-kufi">
-                  اَلْحَدِيثُ الشَّرِيفُ
-                </h1>
-                <p className="mt-4 text-lg md:text-xl text-stone-600">
-                  تصحيح وشرح الحديث الشريف
-                </p>
+                <div className="inline-block p-4 mb-4 bg-white/60 rounded-full shadow-inner">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-amber-700">
+                    <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+                    <path d="m15.5 8-4.5 4.5-2.5-2.5" /><path d="m15.5 13-4.5 4.5-2.5-2.5" />
+                  </svg>
+                </div>
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-stone-900 font-reem-kufi">اَلْحَدِيثُ الشَّرِيفُ</h1>
+                <p className="mt-4 text-lg md:text-xl text-stone-600">تصحيح وشرح الحديث الشريف باستخدام الذكاء الاصطناعي</p>
               </header>
 
-              <div className="flex flex-wrap items-stretch justify-center gap-6 sm:gap-8">
-                <NavButton 
-                  href="https://sufyan769.github.io/hadeth-o/index.html" 
-                  label="موسوعة الحديث" 
-                  Icon={BookOpenIcon} 
-                />
-                <NavButton 
-                  href="https://sufyan769.github.io/hadeth/wiki.html" 
-                  label="ويكي الحديث" 
-                  Icon={WikiIcon} 
-                />
-                <NavButton 
-                  href="https://sufyan769.github.io/hadeth/index1.html" 
-                  label="الباحث المتقدم للاحاديث" 
-                  Icon={SearchIcon} 
-                />
-                <NavButton 
-                  href="https://fatawa-seo-eanp.vercel.app/" 
-                  label="هل يجوز" 
-                  Icon={QuestionIcon}
-                  description="فتاوى اسلامية سؤال و جواب على منهج السلف"
-                />
-              </div>
+              <section className="mb-12">
+                <div className="bg-white/70 backdrop-blur-sm p-6 sm:p-8 rounded-2xl shadow-lg border border-stone-200">
+                  <h2 className="text-2xl font-bold font-reem-kufi text-stone-800 mb-4">أدخل الحديث للتحليل</h2>
+                  <textarea
+                    className="w-full h-32 p-4 text-lg bg-stone-50 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition duration-300 resize-none"
+                    placeholder="اكتب الحديث هنا..."
+                    value={hadithText}
+                    onChange={(e) => setHadithText(e.target.value)}
+                    dir="rtl"
+                  ></textarea>
+                  <button
+                    onClick={handleAnalyzeClick}
+                    disabled={isLoading}
+                    className="mt-4 w-full sm:w-auto inline-flex items-center justify-center px-8 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-lg rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 disabled:bg-stone-400 disabled:cursor-not-allowed disabled:transform-none"
+                  >
+                    {isLoading ? (
+                      <React.Fragment>
+                        <LoaderIcon className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" />
+                        جاري التحليل...
+                      </React.Fragment>
+                    ) : (
+                      <React.Fragment>
+                        <SparklesIcon className="mr-3 h-6 w-6" />
+                        تحليل الحديث
+                      </React.Fragment>
+                    )}
+                  </button>
+                </div>
+              </section>
+
+              {error && <div className="my-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">{error}</div>}
+
+              {analysisResult && (
+                <section className="mb-12 text-right">
+                  <div className="bg-white/80 backdrop-blur-sm p-6 sm:p-8 rounded-2xl shadow-lg border border-stone-200">
+                    <h2 className="text-2xl font-bold font-reem-kufi text-stone-800 mb-4 text-center">نتائج التحليل</h2>
+                    <div 
+                      className="prose prose-lg max-w-none text-stone-700 leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: marked.parse(analysisResult) }}
+                    >
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              <section>
+                <h2 className="text-2xl font-bold font-reem-kufi text-stone-800 mb-8">روابط مفيدة</h2>
+                <div className="flex flex-wrap items-stretch justify-center gap-6 sm:gap-8">
+                  <NavButton href="https://sufyan769.github.io/hadeth-o/index.html" label="موسوعة الحديث" Icon={BookOpenIcon} />
+                  <NavButton href="https://sufyan769.github.io/hadeth/wiki.html" label="ويكي الحديث" Icon={WikiIcon} />
+                  <NavButton href="https://sufyan769.github.io/hadeth-o/dywan.html" label="ديوان التراجم" Icon={UsersIcon} />
+                  <NavButton href="https://sufyan769.github.io/hadeth/index1.html" label="الباحث المتقدم للاحاديث" Icon={SearchIcon} />
+                  <NavButton href="https://fatawa-seo-eanp.vercel.app/" label="هل يجوز" Icon={QuestionIcon} description="فتاوى اسلامية سؤال و جواب على منهج السلف" />
+                </div>
+              </section>
             </main>
 
             <footer className="mt-12 text-center text-stone-500 text-sm">
-              <p>
-                تم التصميم لتقديم وصول سهل وميسر لعلوم الحديث الشريف.
-              </p>
+              <p>تم التصميم لتقديم وصول سهل وميسر لعلوم الحديث الشريف.</p>
             </footer>
           </div>
         );
       };
-      
+
+      // --- Render App ---
       const rootElement = document.getElementById('root');
       const root = ReactDOM.createRoot(rootElement);
-      root.render(
-        <React.StrictMode>
-          <App />
-        </React.StrictMode>
-      );
+      root.render(<App />);
+
     </script>
   </body>
 </html>
