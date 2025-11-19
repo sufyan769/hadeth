@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>بوابة الحديث الشريف</title>
+    <title>بوابة التطبيقات </title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -92,6 +92,14 @@
         </svg>
       );
 
+      const DatabaseIcon = (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+          <path d="M3 5V19A9 3 0 0 0 21 19V5"></path>
+          <path d="M3 12A9 3 0 0 0 21 12"></path>
+        </svg>
+      );
+
       // --- Navigation Button Component ---
       const NavButton = ({ href, label, Icon, description }) => {
         return (
@@ -171,6 +179,12 @@
                   label="فتاوى ذكيه" 
                   Icon={LightbulbIcon}
                   description="بحث ذكي وسريع في الفتاوى"
+                />
+                <NavButton 
+                  href="https://sufyan769.github.io/tarajum/firebase.html" 
+                  label="تراجم فايربيز" 
+                  Icon={DatabaseIcon}
+                  description="قاعدة بيانات التراجم"
                 />
               </div>
             </main>
