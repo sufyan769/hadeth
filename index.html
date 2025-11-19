@@ -84,6 +84,14 @@
         </svg>
       );
 
+      const LightbulbIcon = (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-1 1.5-2 1.5-3.5a6 6 0 0 0-11 0c0 1.5.5 2.5 1.5 3.5 2.5 2.4 2.9 2.5 3 4"></path>
+          <path d="M9 18h6"></path>
+          <path d="M10 22h4"></path>
+        </svg>
+      );
+
       // --- Navigation Button Component ---
       const NavButton = ({ href, label, Icon, description }) => {
         return (
@@ -157,6 +165,12 @@
                   label="تراجم" 
                   Icon={FileTextIcon}
                   description="تراجم العلماء والرواة"
+                />
+                <NavButton 
+                  href="https://fatawa-seo-eanp.vercel.app/algolia-search.html" 
+                  label="فتاوى ذكيه" 
+                  Icon={LightbulbIcon}
+                  description="بحث ذكي وسريع في الفتاوى"
                 />
               </div>
             </main>
