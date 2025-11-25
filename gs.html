@@ -51,7 +51,7 @@
       const { useState, useEffect } = React;
       import { createRoot } from 'react-dom/client';
       import { initializeApp } from 'firebase/app';
-      import { getFirestore, doc, setDoc, getDoc, query, collection, where, documentId, getDocs } from 'firebase/firestore';
+      import { getFirestore, doc, setDoc, getDoc, query, collection, where, documentId, getDocs, limit, orderBy } from 'firebase/firestore';
       import { liteClient } from 'algoliasearch/lite';
 
       // --- 1. FIREBASE CONFIGURATION ---
@@ -77,6 +77,20 @@
       const searchCache = {};
 
       // --- 3. SERVICES ---
+
+      // Helper to clean messy text from database (add spaces around brackets)
+      const cleanText = (text) => {
+        if (text === null || text === undefined) return "";
+        
+        // Explicitly convert to string to handle numbers or other types safely
+        const str = String(text);
+
+        // Insert space after ] or ) if followed by a non-space
+        let cleaned = str.replace(/([\])])(?=[^\s])/g, '$1 ');
+        // Insert space before [ or ( if preceded by a non-space
+        cleaned = cleaned.replace(/([^\s])(?=[\[(])/g, '$1 ');
+        return cleaned;
+      };
 
       const searchHadith = async (queryText) => {
         const normalizedQuery = queryText.trim().toLowerCase();
@@ -133,6 +147,31 @@
           }
       };
 
+      // NEW: Search directly in Firestore for categories
+      const getHadithsByCategory = async (category) => {
+        try {
+          // 'categories' is an array in Firestore. 'array-contains' queries are efficient.
+          const q = query(
+            collection(db, "hadiths"), 
+            where("categories", "array-contains", category),
+            limit(20)
+          );
+          const querySnapshot = await getDocs(q);
+          const hadiths = [];
+          querySnapshot.forEach((docSnap) => {
+             hadiths.push({
+               id: docSnap.id,
+               objectID: docSnap.id,
+               ...docSnap.data()
+             });
+          });
+          return hadiths;
+        } catch (error) {
+          console.error("Firestore Category Search Error:", error);
+          return [];
+        }
+      };
+
       const getHadithDetails = async (id) => {
           try {
               const docRef = doc(db, "hadiths", id);
@@ -159,10 +198,36 @@
 
       // --- 4. COMPONENTS ---
 
+      // Formats text by splitting on punctuation marks for better readability
+      const FormattedText = ({ text, className = "", style = {} }) => {
+        if (!text) return null;
+        
+        // Clean text first to fix concatenation issues (e.g. "صحيح[فيه]")
+        const cleanedText = cleanText(text);
+
+        // Split text on dot, colon, semicolon, question mark followed by optional space
+        // (?<=[.:؛؟!]) uses lookbehind to keep the delimiter
+        const segments = cleanedText.split(/(?<=[.:؛؟!])\s+/);
+
+        return (
+          <div className={`space-y-3 ${className}`} style={style}>
+            {segments.map((segment, index) => {
+              if (!segment.trim()) return null;
+              return (
+                <p key={index} className="leading-loose">
+                  {segment.trim()}
+                </p>
+              );
+            })}
+          </div>
+        );
+      };
+
       const HighlightText = ({ text, className = "", style = {} }) => {
+        const cleaned = cleanText(text);
         return (
           <p className={`font-amiri leading-loose text-gray-800 ${className}`} style={style}>
-            {text}
+            {cleaned}
           </p>
         );
       };
@@ -184,25 +249,32 @@
                 onClick={() => onSelect(hadith)}
                 className="py-6 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors animate-fade-in last:border-0"
               >
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="text-xs font-bold text-emerald-700">
+                <div className="mb-2 flex items-center gap-2 flex-wrap text-xs">
+                  <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
                     {hadith.source || 'مصدر غير محدد'}
                   </span>
-                  <span className="text-gray-300">|</span>
+                  {hadith.page_or_number && (
+                     <span className="text-gray-500 bg-gray-50 px-2 py-0.5 rounded border border-gray-100">
+                       {hadith.page_or_number}
+                     </span>
+                  )}
                   {hadith.hukm && (
-                    <span className={`text-xs font-medium ${
-                      hadith.hukm.includes('صحيح') ? 'text-green-600' : 
-                      hadith.hukm.includes('ضعيف') ? 'text-red-600' : 'text-gray-600'
-                    }`}>
-                      {hadith.hukm}
-                    </span>
+                    <>
+                      <span className="text-gray-300">|</span>
+                      <span className={`font-medium ${
+                        hadith.hukm.includes('صحيح') ? 'text-green-700' : 
+                        hadith.hukm.includes('ضعيف') ? 'text-red-700' : 'text-gray-600'
+                      }`}>
+                        {cleanText(hadith.hukm)}
+                      </span>
+                    </>
                   )}
                 </div>
                 
-                <HighlightText text={hadith.text} className="text-xl text-gray-900" />
+                <HighlightText text={hadith.text} className="text-xl text-gray-900 line-clamp-3" />
                 
                 <div className="mt-2 text-sm text-gray-400 flex items-center gap-2 overflow-hidden whitespace-nowrap text-ellipsis">
-                  {hadith.rawi && <span>{Array.isArray(hadith.rawi) ? hadith.rawi.join(', ') : hadith.rawi}</span>}
+                  {hadith.rawi && <span>الراوي: {cleanText(Array.isArray(hadith.rawi) ? hadith.rawi.join(', ') : hadith.rawi)}</span>}
                 </div>
               </div>
             ))}
@@ -210,7 +282,7 @@
         );
       };
 
-      const HadithDetail = ({ hadith: initialHadith, onBack, onUpdate }) => {
+      const HadithDetail = ({ hadith: initialHadith, onBack, onUpdate, onSmartLinkClick }) => {
         const [hadith, setHadith] = useState(initialHadith);
         const [isLoadingDetails, setIsLoadingDetails] = useState(false);
         const [isEditing, setIsEditing] = useState(false);
@@ -218,7 +290,7 @@
         const [isSaving, setIsSaving] = useState(false);
         const [error, setError] = useState(null);
         
-        const [fontSize, setFontSize] = useState(20);
+        const [fontSize, setFontSize] = useState(22); // Increased default font size slightly
 
         useEffect(() => {
           let isMounted = true;
@@ -275,115 +347,173 @@
         };
 
         return (
-          <div className="bg-white min-h-screen pb-24 animate-fade-in relative w-full">
-            
-            {isLoadingDetails && (
-                <div className="fixed top-0 left-0 w-full h-1 z-50">
-                    <div className="h-full bg-emerald-500 w-1/2 animate-pulse mx-auto"></div>
-                </div>
-            )}
-
-            <div className="w-full px-2 py-6">
+          <>
+            {/* Main Content Wrapper - Animated */}
+            <div className="bg-white min-h-screen pb-40 animate-fade-in relative w-full">
               
-              <div className="mb-8 text-center">
-                  <div className="inline-flex gap-4 text-sm text-gray-500 mb-4 justify-center w-full">
-                      {hadith.hukm && <span>{hadith.hukm}</span>}
-                      {hadith.source && <span>{hadith.source}</span>}
+              {isLoadingDetails && (
+                  <div className="fixed top-0 left-0 w-full h-1 z-50">
+                      <div className="h-full bg-emerald-500 w-1/2 animate-pulse mx-auto"></div>
                   </div>
-                  
-                  <h1 
-                    className="font-amiri leading-loose text-gray-900 mb-6 transition-all duration-300 text-right px-1" 
-                    style={{ fontSize: `${fontSize}px`, lineHeight: '2.2' }}
-                  >
-                  {hadith.text}
-                  </h1>
-              </div>
+              )}
 
-              <div className="border-t border-gray-100 pt-6 mb-8">
-                  <div className="grid grid-cols-1 gap-4 text-sm text-gray-600 px-1">
-                      <div>
-                          <span className="font-bold block mb-1 text-gray-400 text-xs">الراوي</span>
-                          {Array.isArray(hadith.rawi) ? hadith.rawi.join('، ') : hadith.rawi || '-'}
-                      </div>
-                      <div>
-                          <span className="font-bold block mb-1 text-gray-400 text-xs">المحدث</span>
-                          {hadith.muhaddith || '-'}
-                      </div>
-                      {hadith.takhrij && (
-                         <div>
-                            <span className="font-bold block mb-1 text-gray-400 text-xs">التخريج</span>
-                            {hadith.takhrij}
+              <div className="w-full px-2 py-6">
+                
+                {/* Header Info */}
+                <div className="mb-6 text-center">
+                    <div className="inline-flex flex-wrap gap-2 text-sm text-gray-500 mb-6 justify-center w-full items-center">
+                        {hadith.hukm && <span className="px-2 py-1 bg-gray-50 rounded border border-gray-100">{cleanText(hadith.hukm)}</span>}
+                        {hadith.source && <span className="px-2 py-1 bg-gray-50 rounded border border-gray-100">{hadith.source}</span>}
+                        {hadith.page_or_number && <span className="px-2 py-1 bg-gray-50 rounded border border-gray-100">رقم: {hadith.page_or_number}</span>}
+                    </div>
+                    
+                    {/* Hadith Text with Line Break Formatting */}
+                    <div className="text-right px-1">
+                        <FormattedText 
+                          text={hadith.text} 
+                          className="font-amiri text-gray-900 mb-6 transition-all duration-300 font-bold"
+                          style={{ fontSize: `${fontSize}px` }} 
+                        />
+                    </div>
+                </div>
+
+                {/* Data Grid */}
+                <div className="border-t border-gray-100 pt-6 mb-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-4 text-sm text-gray-700 px-1">
+                        
+                        {/* Rawi */}
+                        <div className="border-b border-gray-50 pb-2 md:border-0">
+                            <span className="font-bold block mb-2 text-emerald-700 text-xs">الراوي</span>
+                            {hadith.rawi ? (
+                               <button 
+                                 onClick={() => {
+                                   // Rawi usually needs text search, keeping default logic or passing a specific type
+                                   // But user asked only for Categories to be Firebase-specific. 
+                                   // We'll keep text search for Rawi as it's often partial match.
+                                   onSmartLinkClick(Array.isArray(hadith.rawi) ? hadith.rawi[0] : hadith.rawi, 'text')
+                                 }}
+                                 className="text-gray-800 hover:text-emerald-600 underline decoration-dotted underline-offset-4 transition-colors text-right"
+                               >
+                                 {cleanText(Array.isArray(hadith.rawi) ? hadith.rawi.join('، ') : hadith.rawi)}
+                               </button>
+                            ) : '-'}
                         </div>
-                      )}
-                  </div>
-              </div>
 
-              <div className="mt-8 px-1">
-                  <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-lg font-bold text-gray-800 font-amiri">الشرح</h2>
-                      {!isEditing && (
-                          <button onClick={() => setIsEditing(true)} className="text-emerald-600 text-sm font-bold">تعديل</button>
-                      )}
-                  </div>
+                        {/* Muhaddith */}
+                        <div className="border-b border-gray-50 pb-2 md:border-0">
+                            <span className="font-bold block mb-2 text-emerald-700 text-xs">المحدث</span>
+                            {cleanText(hadith.muhaddith) || '-'}
+                        </div>
 
-                  {isEditing ? (
-                      <div className="space-y-4">
-                          <textarea 
-                              value={sharh}
-                              onChange={(e) => setSharh(e.target.value)}
-                              className="w-full p-3 border border-gray-200 rounded-lg focus:border-emerald-500 outline-none min-h-[200px] font-amiri text-lg"
-                              placeholder="أدخل الشرح..."
-                          />
-                          <div className="flex gap-3 justify-end">
-                              <button onClick={() => setIsEditing(false)} className="px-4 py-2 text-gray-500" disabled={isSaving}>إلغاء</button>
-                              <button onClick={handleSave} disabled={isSaving} className="px-6 py-2 bg-emerald-600 text-white rounded-lg">
-                                  {isSaving ? '...' : 'حفظ'}
-                              </button>
+                        {/* Takhrij */}
+                        {hadith.takhrij && (
+                           <div className="md:col-span-2 border-b border-gray-50 pb-2 md:border-0">
+                              <span className="font-bold block mb-2 text-emerald-700 text-xs">التخريج</span>
+                              <p className="leading-relaxed">{cleanText(hadith.takhrij)}</p>
                           </div>
-                          {error && <p className="text-red-500 text-xs">{error}</p>}
-                      </div>
-                  ) : (
-                      <p 
-                        className="text-gray-700 font-amiri leading-loose whitespace-pre-wrap transition-all duration-300"
-                        style={{ fontSize: `${fontSize - 2}px` }}
-                      >
-                          {sharh || 'لا يوجد شرح متوفر.'}
-                      </p>
-                  )}
+                        )}
+
+                        {/* Categories (Smart Links) - FIREBASE SEARCH */}
+                        {hadith.categories && hadith.categories.length > 0 && (
+                          <div className="md:col-span-2 pt-2">
+                             <span className="font-bold block mb-3 text-emerald-700 text-xs">التصنيفات</span>
+                             <div className="flex flex-wrap gap-2">
+                               {hadith.categories.map((cat, idx) => (
+                                 <button 
+                                   key={idx}
+                                   onClick={() => onSmartLinkClick(cat, 'category')}
+                                   className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs rounded-full transition-colors duration-200 border border-emerald-100"
+                                 >
+                                   #{cat}
+                                 </button>
+                               ))}
+                             </div>
+                          </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Sharh Section */}
+                <div className="mt-8 px-1">
+                    <div className="flex justify-between items-center mb-4 border-b-2 border-emerald-100 pb-2">
+                        <h2 className="text-lg font-bold text-gray-800 font-amiri">الشرح</h2>
+                        {!isEditing && (
+                            <button onClick={() => setIsEditing(true)} className="text-emerald-600 text-sm font-bold hover:text-emerald-800">تعديل</button>
+                        )}
+                    </div>
+
+                    {isEditing ? (
+                        <div className="space-y-4 animate-fade-in">
+                            <textarea 
+                                value={sharh}
+                                onChange={(e) => setSharh(e.target.value)}
+                                className="w-full p-4 border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none min-h-[300px] font-amiri text-lg leading-loose"
+                                placeholder="أدخل الشرح..."
+                            />
+                            <div className="flex gap-3 justify-end">
+                                <button onClick={() => setIsEditing(false)} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg" disabled={isSaving}>إلغاء</button>
+                                <button onClick={handleSave} disabled={isSaving} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors shadow-sm">
+                                    {isSaving ? '...' : 'حفظ'}
+                                </button>
+                            </div>
+                            {error && <p className="text-red-500 text-xs">{error}</p>}
+                        </div>
+                    ) : (
+                        <FormattedText 
+                          text={sharh} 
+                          className="text-gray-700 font-amiri transition-all duration-300"
+                          style={{ fontSize: `${fontSize - 2}px` }}
+                        />
+                    )}
+                    
+                    {!sharh && !isEditing && (
+                      <p className="text-gray-400 text-sm py-4">لا يوجد شرح متوفر حالياً.</p>
+                    )}
+                </div>
+
+                {/* Osoul (Origins) Section - Bottom */}
+                {hadith.osoul && (
+                  <div className="mt-12 px-1 border-t border-gray-100 pt-8">
+                       <h2 className="text-lg font-bold text-gray-800 font-amiri mb-4">أصل الحديث</h2>
+                       <FormattedText 
+                          text={hadith.osoul} 
+                          className="text-gray-600 font-amiri leading-loose"
+                          style={{ fontSize: `${fontSize - 4}px` }}
+                        />
+                  </div>
+                )}
               </div>
             </div>
-
-            {/* Floating Action Buttons (Fixed Bottom Right - Closer to edge) */}
-            <div className="fixed bottom-4 right-2 flex flex-col items-center gap-2 z-50">
-                {/* Font Size Controls */}
-                <div className="flex flex-col gap-1 bg-gray-900/50 p-1 rounded-full backdrop-blur-sm mb-1 shadow-sm">
+            
+            {/* Floating Action Buttons - OUTSIDE the animated div to ensure position:fixed works */}
+            <div className="fixed bottom-6 right-2 z-[100] flex flex-col items-center gap-3">
+                {/* Font Size */}
+                <div className="flex flex-col gap-1 bg-gray-900/90 p-1.5 rounded-full backdrop-blur-md shadow-xl border border-gray-700/50">
                    <button 
                       onClick={() => adjustFontSize(2)} 
-                      className="w-8 h-8 flex items-center justify-center bg-transparent text-white rounded-full hover:bg-white/20 transition"
-                      title="تكبير الخط"
+                      className="w-10 h-10 flex items-center justify-center text-white rounded-full hover:bg-white/20 transition active:scale-95"
                    >
-                      <span className="text-lg font-bold">+</span>
+                      <span className="text-xl font-bold select-none">+</span>
                    </button>
+                   <div className="h-px w-6 bg-gray-600 mx-auto my-1"></div>
                    <button 
                       onClick={() => adjustFontSize(-2)} 
-                      className="w-8 h-8 flex items-center justify-center bg-transparent text-white rounded-full hover:bg-white/20 transition"
-                      title="تصغير الخط"
+                      className="w-10 h-10 flex items-center justify-center text-white rounded-full hover:bg-white/20 transition active:scale-95"
                    >
-                      <span className="text-lg font-bold">-</span>
+                      <span className="text-xl font-bold select-none">-</span>
                    </button>
                 </div>
 
                 {/* Back Button */}
                 <button 
                   onClick={onBack}
-                  className="w-12 h-12 bg-emerald-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-emerald-700 transition-transform active:scale-95 opacity-90 hover:opacity-100"
+                  className="w-14 h-14 bg-emerald-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-emerald-700 transition-all active:scale-95 hover:shadow-emerald-500/50 border-2 border-white/10"
                   title="عودة"
                 >
-                   <svg className="w-5 h-5 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
+                   <svg className="w-6 h-6 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"></path></svg>
                 </button>
             </div>
-
-          </div>
+          </>
         );
       };
 
@@ -397,38 +527,57 @@
         const [selectedHadith, setSelectedHadith] = useState(null);
         const [error, setError] = useState(null);
 
-        const handleSearch = async (e) => {
-          e.preventDefault();
-          if (!queryInput.trim()) return;
+        const executeSearch = async (term, type = 'text') => {
+          if (!term.trim()) return;
 
           setLoading(true);
           setError(null);
           setHasSearched(true);
           setSelectedHadith(null);
+          setQueryInput(term);
 
           try {
-            const algoliaResponse = await searchHadith(queryInput);
-            const algoliaHits = algoliaResponse.hits;
-
-            if (algoliaHits.length > 0) {
-                const ids = algoliaHits.map(hit => hit.objectID);
-                const firestoreData = await getHadithsByIds(ids);
-
-                const sortedResults = algoliaHits.map(algoliaHit => {
-                    const fullData = firestoreData.find(f => f.id === algoliaHit.objectID);
-                    return fullData || algoliaHit;
-                }).filter(Boolean);
-
-                setResults(sortedResults);
+            let hits = [];
+            
+            // Branch logic: Category vs Text
+            if (type === 'category') {
+              // Direct Firestore Query
+              const firestoreHits = await getHadithsByCategory(term);
+              hits = firestoreHits;
             } else {
-                setResults([]);
+              // Algolia Search (Standard)
+              const algoliaResponse = await searchHadith(term);
+              const algoliaHits = algoliaResponse.hits;
+              
+              if (algoliaHits.length > 0) {
+                  const ids = algoliaHits.map(hit => hit.objectID);
+                  const firestoreData = await getHadithsByIds(ids);
+
+                  // Merge sorting by Algolia relevance
+                  hits = algoliaHits.map(algoliaHit => {
+                      const fullData = firestoreData.find(f => f.id === algoliaHit.objectID);
+                      return fullData || algoliaHit;
+                  }).filter(Boolean);
+              }
             }
+
+            setResults(hits);
+            
+            if (hits.length === 0) {
+               // Optional: Show message if empty
+            }
+
           } catch (err) {
             setError('خطأ في الاتصال.');
             console.error(err);
           } finally {
             setLoading(false);
           }
+        };
+
+        const handleSearchSubmit = (e) => {
+          e.preventDefault();
+          executeSearch(queryInput, 'text');
         };
 
         const handleHadithUpdate = (updatedHadith) => {
@@ -444,7 +593,12 @@
             {!selectedHadith && (
               <nav className="bg-white border-b border-gray-100 py-4 sticky top-0 z-20">
                 <div className="max-w-4xl mx-auto px-4 flex justify-between items-center">
-                   <h1 className="text-lg font-bold font-amiri text-emerald-800">بيان</h1>
+                   <h1 
+                     className="text-lg font-bold font-amiri text-emerald-800 cursor-pointer" 
+                     onClick={() => { setHasSearched(false); setQueryInput(''); setResults([]); }}
+                   >
+                     بيان
+                   </h1>
                 </div>
               </nav>
             )}
@@ -455,6 +609,7 @@
                   hadith={selectedHadith} 
                   onBack={() => setSelectedHadith(null)}
                   onUpdate={handleHadithUpdate}
+                  onSmartLinkClick={(term, type) => executeSearch(term, type)}
                 />
               ) : (
                 <div className="flex flex-col items-center">
@@ -466,19 +621,19 @@
                        </div>
                     )}
                     
-                    <form onSubmit={handleSearch} className="relative w-full max-w-2xl mx-auto px-2">
+                    <form onSubmit={handleSearchSubmit} className="relative w-full max-w-2xl mx-auto px-2">
                       <div className="relative">
                           <input
                           type="text"
                           value={queryInput}
                           onChange={(e) => setQueryInput(e.target.value)}
                           placeholder="ابحث..."
-                          className="w-full pl-4 pr-12 py-3 text-lg bg-gray-50 border-none rounded-full focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all placeholder-gray-400"
+                          className="w-full pl-12 pr-4 py-3 text-lg bg-white border border-gray-900 rounded-full focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all placeholder-gray-400 shadow-sm"
                           />
                           <button
                           type="submit"
                           disabled={loading || !queryInput.trim()}
-                          className="absolute right-2 top-1.5 bottom-1.5 w-10 h-10 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full flex items-center justify-center transition-colors disabled:bg-gray-200"
+                          className="absolute left-1.5 top-1.5 bottom-1.5 w-10 h-10 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full flex items-center justify-center transition-colors disabled:bg-gray-200"
                           >
                           {loading ? (
                               <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
