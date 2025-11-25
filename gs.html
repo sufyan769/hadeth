@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>منصة بيان للحديث النبوي</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Noto+Kufi+Arabic:wght@100..900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+      body {
+        font-family: 'Noto Kufi Arabic', sans-serif;
+      }
+      .font-amiri {
+        font-family: 'Amiri', serif;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade-in {
+        animation: fadeIn 0.4s ease-out forwards;
+      }
+    </style>
+    <script type="importmap">
+{
+  "imports": {
+    "algoliasearch/lite": "https://aistudiocdn.com/algoliasearch@^5.45.0/lite",
+    "react-dom/client": "https://aistudiocdn.com/react-dom@^19.2.0/client",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "firebase/app": "https://aistudiocdn.com/firebase@^12.6.0/app",
+    "firebase/firestore": "https://aistudiocdn.com/firebase@^12.6.0/firestore",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/",
+    "algoliasearch/": "https://aistudiocdn.com/algoliasearch@^5.45.0/"
+  }
+}
+</script>
+  </head>
+  <body class="bg-gray-50 text-gray-900 min-h-screen">
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+      import * as React from 'react';
+      const { useState, useEffect } = React;
+      import { createRoot } from 'react-dom/client';
+      import { initializeApp } from 'firebase/app';
+      import { getFirestore, doc, setDoc, getDoc, query, collection, where, documentId, getDocs } from 'firebase/firestore';
+      import { liteClient } from 'algoliasearch/lite';
+
+      // --- 1. FIREBASE CONFIGURATION ---
+      const firebaseConfig = {
+        apiKey: "AIzaSyBYJ2pVoWJ5ednWOnnF2dOJ43MJvDi_8rw",
+        authDomain: "hadeth-7baf7.firebaseapp.com",
+        projectId: "hadeth-7baf7",
+        storageBucket: "hadeth-7baf7.firebasestorage.app",
+        messagingSenderId: "401684715520",
+        appId: "1:401684715520:web:297abdb6aee1fb3176a0e5",
+        measurementId: "G-LGET278KWQ"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+
+      // --- 2. ALGOLIA CONFIGURATION ---
+      const ALGOLIA_APP_ID = '88G4AVERCC';
+      const ALGOLIA_API_KEY = '76402a5d814264e01fb86ca687d26e30';
+      const ALGOLIA_INDEX_NAME = 'firebase-hadeth';
+
+      const algoliaClient = liteClient(ALGOLIA_APP_ID, ALGOLIA_API_KEY);
+      const searchCache = {};
+
+      // --- 3. SERVICES ---
+
+      // Service: Search Algolia
+      const searchHadith = async (queryText) => {
+        const normalizedQuery = queryText.trim().toLowerCase();
+
+        if (searchCache[normalizedQuery]) {
+          return searchCache[normalizedQuery];
+        }
+
+        try {
+          const response = await algoliaClient.search({
+            requests: [
+              {
+                indexName: ALGOLIA_INDEX_NAME,
+                query: normalizedQuery,
+                hitsPerPage: 20,
+                attributesToRetrieve: ['*'], 
+                attributesToHighlight: ['text']
+              }
+            ]
+          });
+
+          const firstResult = response.results[0]; 
+          const hits = (firstResult.hits || []).map((hit) => ({
+            ...hit,
+            objectID: hit.objectID
+          }));
+          
+          const result = { hits };
+          searchCache[normalizedQuery] = result;
+          return result;
+        } catch (error) {
+          console.error("Algolia Search Error:", error);
+          throw error;
+        }
+      };
+
+      // Service: Get Details from Firestore (Hydration)
+      const getHadithsByIds = async (ids) => {
+          if (!ids || ids.length === 0) return [];
+          try {
+              const q = query(collection(db, "hadiths"), where(documentId(), "in", ids));
+              const querySnapshot = await getDocs(q);
+              const hadiths = [];
+              querySnapshot.forEach((docSnap) => {
+                  hadiths.push({ 
+                      id: docSnap.id, 
+                      objectID: docSnap.id, 
+                      ...docSnap.data() 
+                  });
+              });
+              return hadiths;
+          } catch (error) {
+              console.error("Firestore Batch Error:", error);
+              return [];
+          }
+      };
+
+      // Service: Get Single Detail
+      const getHadithDetails = async (id) => {
+          try {
+              const docRef = doc(db, "hadiths", id);
+              const docSnap = await getDoc(docRef);
+              if (docSnap.exists()) {
+                  return { id: docSnap.id, objectID: docSnap.id, ...docSnap.data() };
+              }
+              return null;
+          } catch (error) {
+              console.error("Firestore Single Error:", error);
+              return null;
+          }
+      }
+
+      // Service: Update Sharh
+      const updateHadithSharh = async (id, newSharh) => {
+        try {
+          const hadithRef = doc(db, "hadiths", id); 
+          await setDoc(hadithRef, { sharh: newSharh }, { merge: true });
+        } catch (error) {
+          console.error("Firestore Update Error: ", error);
+          throw error;
+        }
+      };
+
+      // --- 4. COMPONENTS ---
+
+      const HighlightText = ({ text, className = "" }) => {
+        return (
+          <p className={`font-amiri leading-loose text-gray-800 ${className}`}>
+            {text}
+          </p>
+        );
+      };
+
+      const HadithList = ({ hadiths, onSelect }) => {
+        if (hadiths.length === 0) {
+          return (
+            <div className="text-center py-12">
+              <p className="text-gray-500 text-lg">لا توجد نتائج. حاول البحث بكلمات مختلفة.</p>
+            </div>
+          );
+        }
+
+        return (
+          <div className="grid gap-4 md:grid-cols-1 w-full max-w-4xl mx-auto">
+            {hadiths.map((hadith) => (
+              <div 
+                key={hadith.objectID} 
+                onClick={() => onSelect(hadith)}
+                className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow cursor-pointer group animate-fade-in"
+              >
+                <div className="mb-3 flex justify-between items-start">
+                  <span className="inline-block px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full">
+                    {hadith.source || 'مصدر غير محدد'}
+                  </span>
+                  {hadith.hukm && (
+                    <span className={`text-xs font-medium px-2 py-1 rounded ${
+                      hadith.hukm.includes('صحيح') ? 'text-green-600 bg-green-50' : 
+                      hadith.hukm.includes('ضعيف') ? 'text-red-600 bg-red-50' : 'text-gray-600 bg-gray-50'
+                    }`}>
+                      {hadith.hukm}
+                    </span>
+                  )}
+                </div>
+                
+                <HighlightText text={hadith.text} className="text-xl mb-4 text-gray-800 group-hover:text-emerald-900 transition-colors" />
+                
+                <div className="flex flex-wrap gap-y-1 gap-x-4 text-sm text-gray-500">
+                  {hadith.rawi && (
+                    <div className="flex items-center gap-1">
+                      <span className="font-semibold text-gray-400">الراوي:</span>
+                      <span>{Array.isArray(hadith.rawi) ? hadith.rawi.join(', ') : hadith.rawi}</span>
+                    </div>
+                  )}
+                  {hadith.muhaddith && (
+                    <div className="flex items-center gap-1">
+                      <span className="font-semibold text-gray-400">المحدث:</span>
+                      <span>{hadith.muhaddith}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      };
+
+      const HadithDetail = ({ hadith: initialHadith, onBack, onUpdate }) => {
+        const [hadith, setHadith] = useState(initialHadith);
+        const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+        const [isEditing, setIsEditing] = useState(false);
+        const [sharh, setSharh] = useState(initialHadith.sharh || '');
+        const [isSaving, setIsSaving] = useState(false);
+        const [error, setError] = useState(null);
+
+        useEffect(() => {
+          let isMounted = true;
+          const fetchFullDetails = async () => {
+              setIsLoadingDetails(true);
+              try {
+                  const targetId = initialHadith.id || initialHadith.objectID;
+                  const freshData = await getHadithDetails(targetId);
+                  
+                  if (isMounted && freshData) {
+                      const mergedHadith = { ...initialHadith, ...freshData };
+                      setHadith(mergedHadith);
+                      setSharh(mergedHadith.sharh || '');
+                      onUpdate(mergedHadith);
+                  }
+              } catch (err) {
+                  console.error("Failed to fetch full details", err);
+              } finally {
+                  if (isMounted) setIsLoadingDetails(false);
+              }
+          };
+          fetchFullDetails();
+          return () => { isMounted = false; };
+        }, [initialHadith.objectID]);
+
+        const handleSave = async () => {
+          const targetId = hadith.id || hadith.objectID;
+          if (!targetId) {
+              setError("لا يوجد معرف للحديث للحفظ");
+              return;
+          }
+
+          setIsSaving(true);
+          setError(null);
+          
+          try {
+            await updateHadithSharh(targetId, sharh);
+            const updated = { ...hadith, sharh };
+            setHadith(updated);
+            onUpdate(updated);
+            setIsEditing(false);
+          } catch (err) {
+            console.error("Save Error:", err);
+            if (err.code === 'permission-denied') {
+              setError("عذراً، ليس لديك صلاحية التعديل. يرجى التحقق من قواعد الأمان في Firebase Console.");
+            } else {
+              setError("فشل الحفظ. تأكد من الاتصال بالإنترنت.");
+            }
+          } finally {
+            setIsSaving(false);
+          }
+        };
+
+        const handleShare = () => {
+            if (navigator.share) {
+                navigator.share({ title: 'حديث نبوي', text: hadith.text }).catch(console.error);
+            } else {
+                navigator.clipboard.writeText(hadith.text);
+                alert('تم نسخ نص الحديث');
+            }
+        }
+
+        return (
+          <div className="bg-white min-h-[80vh] rounded-2xl shadow-xl overflow-hidden flex flex-col max-w-4xl mx-auto animate-fade-in relative">
+            
+            {isLoadingDetails && (
+                <div className="absolute top-0 left-0 w-full h-1 bg-gray-100 overflow-hidden z-20">
+                    <div className="h-full bg-emerald-500 w-1/2 animate-pulse"></div>
+                </div>
+            )}
+
+            <div className="bg-emerald-600 p-4 text-white flex justify-between items-center sticky top-0 z-10 shadow-md">
+              <button onClick={onBack} className="flex items-center gap-2 hover:bg-emerald-700 px-3 py-1.5 rounded transition">
+                <svg className="w-5 h-5 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
+                <span>عودة</span>
+              </button>
+              <button onClick={handleShare} className="p-2 hover:bg-emerald-700 rounded-full" title="مشاركة">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+              </button>
+            </div>
+
+            <div className="p-6 md:p-8 flex-1 overflow-y-auto">
+              <div className="mb-8 text-center">
+                  <h1 className="text-2xl md:text-3xl font-amiri leading-loose text-gray-900 mb-6 px-4">
+                  ❝ {hadith.text} ❞
+                  </h1>
+                  <div className="inline-flex flex-wrap justify-center gap-2">
+                      {hadith.hukm && <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-md text-sm">{hadith.hukm}</span>}
+                      {hadith.source && <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-md text-sm">{hadith.source}</span>}
+                  </div>
+              </div>
+
+              <hr className="my-6 border-gray-200" />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 text-sm">
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                      <h3 className="font-bold text-gray-500 mb-2">الراوي</h3>
+                      <p className="font-medium text-gray-800">
+                          {Array.isArray(hadith.rawi) ? hadith.rawi.join('، ') : hadith.rawi || 'غير متوفر'}
+                      </p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                      <h3 className="font-bold text-gray-500 mb-2">المحدث</h3>
+                      <p className="font-medium text-gray-800">
+                          {hadith.muhaddith || 'غير متوفر'}
+                      </p>
+                  </div>
+                  {hadith.takhrij && (
+                     <div className="bg-gray-50 p-4 rounded-lg md:col-span-2">
+                        <h3 className="font-bold text-gray-500 mb-2">التخريج</h3>
+                        <p className="font-medium text-gray-800">{hadith.takhrij}</p>
+                    </div>
+                  )}
+              </div>
+
+              <div className="bg-emerald-50 rounded-xl p-6 border border-emerald-100">
+                  <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-xl font-bold text-emerald-800 flex items-center gap-2">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                          الشرح
+                      </h2>
+                      {!isEditing && (
+                          <button onClick={() => setIsEditing(true)} className="text-emerald-600 hover:text-emerald-800 text-sm font-medium underline">تعديل</button>
+                      )}
+                  </div>
+
+                  {isEditing ? (
+                      <div className="space-y-4">
+                          <textarea 
+                              value={sharh}
+                              onChange={(e) => setSharh(e.target.value)}
+                              className="w-full p-4 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none min-h-[200px] font-amiri text-lg"
+                              placeholder="أدخل الشرح..."
+                          />
+                          <div className="flex gap-3 justify-end">
+                              <button onClick={() => setIsEditing(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg" disabled={isSaving}>إلغاء</button>
+                              <button onClick={handleSave} disabled={isSaving} className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition">
+                                  {isSaving ? 'جاري الحفظ...' : 'حفظ'}
+                              </button>
+                          </div>
+                          {error && <p className="text-red-600 text-sm">{error}</p>}
+                      </div>
+                  ) : (
+                      <p className="text-gray-700 font-amiri text-lg leading-loose whitespace-pre-wrap">
+                          {sharh || 'لا يوجد شرح متوفر.'}
+                      </p>
+                  )}
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      // --- 5. MAIN APP ---
+
+      const App = () => {
+        const [queryInput, setQueryInput] = useState('');
+        const [results, setResults] = useState([]);
+        const [loading, setLoading] = useState(false);
+        const [hasSearched, setHasSearched] = useState(false);
+        const [selectedHadith, setSelectedHadith] = useState(null);
+        const [error, setError] = useState(null);
+
+        const handleSearch = async (e) => {
+          e.preventDefault();
+          if (!queryInput.trim()) return;
+
+          setLoading(true);
+          setError(null);
+          setHasSearched(true);
+          setSelectedHadith(null);
+
+          try {
+            const algoliaResponse = await searchHadith(queryInput);
+            const algoliaHits = algoliaResponse.hits;
+
+            if (algoliaHits.length > 0) {
+                const ids = algoliaHits.map(hit => hit.objectID);
+                const firestoreData = await getHadithsByIds(ids);
+
+                const sortedResults = algoliaHits.map(algoliaHit => {
+                    const fullData = firestoreData.find(f => f.id === algoliaHit.objectID);
+                    return fullData || algoliaHit;
+                }).filter(Boolean);
+
+                setResults(sortedResults);
+            } else {
+                setResults([]);
+            }
+          } catch (err) {
+            setError('خطأ في الاتصال.');
+            console.error(err);
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        const handleHadithUpdate = (updatedHadith) => {
+          setSelectedHadith(updatedHadith);
+          setResults(prev => prev.map(h => 
+            (h.objectID === updatedHadith.objectID || h.id === updatedHadith.id) ? updatedHadith : h
+          ));
+        };
+
+        return (
+          <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+            <nav className="bg-emerald-700 text-white shadow-lg sticky top-0 z-20">
+              <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-white/10 p-2 rounded-lg">
+                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                  </div>
+                  <div>
+                       <h1 className="text-xl font-bold font-amiri">منصة بيان</h1>
+                       <p className="text-xs text-emerald-200">للبحث في السنة النبوية</p>
+                  </div>
+                </div>
+              </div>
+            </nav>
+
+            <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-8">
+              {selectedHadith ? (
+                <HadithDetail 
+                  hadith={selectedHadith} 
+                  onBack={() => setSelectedHadith(null)}
+                  onUpdate={handleHadithUpdate}
+                />
+              ) : (
+                <div className="flex flex-col items-center">
+                  <div className={`w-full transition-all duration-500 ${hasSearched ? 'max-w-4xl mb-8' : 'max-w-2xl mt-16 md:mt-32'}`}>
+                    {!hasSearched && (
+                       <div className="text-center mb-8">
+                           <h2 className="text-3xl font-bold text-gray-800 mb-2 font-amiri">ابحث في آلاف الأحاديث الصحيحة</h2>
+                           <p className="text-gray-500">بحث فوري وموثق</p>
+                       </div>
+                    )}
+                    
+                    <form onSubmit={handleSearch} className="relative w-full">
+                      <div className="relative">
+                          <input
+                          type="text"
+                          value={queryInput}
+                          onChange={(e) => setQueryInput(e.target.value)}
+                          placeholder="اكتب جزءاً من الحديث..."
+                          className="w-full pr-4 pl-32 py-4 text-lg rounded-2xl border-2 border-gray-200 shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 outline-none transition-all"
+                          />
+                          <button
+                          type="submit"
+                          disabled={loading || !queryInput.trim()}
+                          className="absolute left-2 top-2 bottom-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 rounded-xl font-medium transition-colors flex items-center gap-2 disabled:bg-gray-300"
+                          >
+                          {loading ? (
+                              <span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></span>
+                          ) : (
+                              'بحث'
+                          )}
+                          </button>
+                      </div>
+                    </form>
+                  </div>
+
+                  {error ? (
+                    <div className="w-full max-w-4xl bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 text-center">
+                      {error}
+                    </div>
+                  ) : hasSearched && !loading ? (
+                     <div className="w-full animate-fade-in">
+                         <div className="max-w-4xl mx-auto mb-4 flex justify-between items-end border-b border-gray-200 pb-2">
+                             <h3 className="font-bold text-gray-700">النتائج</h3>
+                             <span className="text-sm text-gray-400">{results.length} حديث</span>
+                         </div>
+                         <HadithList hadiths={results} onSelect={setSelectedHadith} />
+                     </div>
+                  ) : null}
+                </div>
+              )}
+            </main>
+
+            <footer className="bg-gray-100 border-t border-gray-200 py-6 mt-8">
+              <div className="max-w-6xl mx-auto px-4 text-center text-gray-500 text-sm">
+                <p>جميع الحقوق محفوظة © منصة بيان {new Date().getFullYear()}</p>
+              </div>
+            </footer>
+          </div>
+        );
+      };
+
+      const root = createRoot(document.getElementById('root'));
+      root.render(<App />);
+    </script>
+  </body>
+</html>
