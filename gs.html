@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منصة بيان - بحث وتعديل الأحاديث</title>
+    <title>منصة بيان - بحث الأحاديث</title>
     
     <!-- CSS Frameworks -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -57,27 +57,6 @@
             gap: 10px;
             align-items: center;
         }
-
-        /* Editor Styles */
-        .editor-input {
-            width: 100%;
-            padding: 8px 12px;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            font-family: 'Amiri', serif;
-            font-size: 1rem;
-            margin-top: 4px;
-        }
-        .editor-input:focus {
-            outline: none;
-            border-color: #059669;
-            ring: 2px solid #059669;
-        }
-        .editor-label {
-            font-weight: bold;
-            font-size: 0.9rem;
-            color: #047857; /* Emerald 700 */
-        }
     </style>
 <script type="importmap">
 {
@@ -95,10 +74,8 @@
     <!-- Navbar -->
     <nav class="border-b border-gray-100 py-4 sticky top-0 bg-white/95 backdrop-blur z-40">
         <div class="max-w-4xl mx-auto px-4 flex justify-between items-center">
-            <h1 class="text-xl font-bold font-amiri text-emerald-800 cursor-pointer select-none" onclick="goHome()">بيان</h1>
-            <button onclick="openEditor(null)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-full text-sm font-bold transition flex items-center gap-2">
-                <span>+</span> <span>إضافة حديث</span>
-            </button>
+            <h1 class="text-xl font-bold font-amiri text-emerald-800 cursor-pointer select-none" onclick="goHome()">ْمِنَصَّّــْـةُ بَـــيَّان</h1>
+            <!-- Add button removed as requested -->
         </div>
     </nav>
 
@@ -123,94 +100,6 @@
             <div id="detail-content"></div>
         </div>
 
-        <!-- View 3: Editor (Add/Edit) -->
-        <div id="editor-view" style="display: none;">
-            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                <h2 id="editor-title" class="text-2xl font-bold font-amiri text-center mb-6 text-gray-800">تعديل الحديث</h2>
-                
-                <form id="hadith-form" onsubmit="saveHadith(event)">
-                    <input type="hidden" id="edit-id">
-                    
-                    <div class="space-y-4">
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- Custom ID -->
-                            <div>
-                                <label class="editor-label">رقم الحديث (ID)</label>
-                                <input type="text" id="inp-custom-id" class="editor-input" placeholder="يترك فارغاً للتوليد التلقائي أو يكتب يدوياً">
-                            </div>
-                             <!-- Page -->
-                             <div>
-                                <label class="editor-label">الصفحة / الرقم</label>
-                                <input type="text" id="inp-page" class="editor-input">
-                            </div>
-                        </div>
-
-                        <!-- Text -->
-                        <div>
-                            <label class="editor-label">نص الحديث</label>
-                            <textarea id="inp-text" rows="5" class="editor-input" required></textarea>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- Rawi -->
-                            <div>
-                                <label class="editor-label">الراوي (افصل بفاصلة)</label>
-                                <input type="text" id="inp-rawi" class="editor-input">
-                            </div>
-                             <!-- Muhaddith -->
-                             <div>
-                                <label class="editor-label">المحدث</label>
-                                <input type="text" id="inp-muhaddith" class="editor-input">
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- Hukm -->
-                            <div>
-                                <label class="editor-label">الحكم</label>
-                                <input type="text" id="inp-hukm" class="editor-input">
-                            </div>
-                            <!-- Source -->
-                            <div>
-                                <label class="editor-label">المصدر</label>
-                                <input type="text" id="inp-source" class="editor-input">
-                            </div>
-                        </div>
-
-                        <!-- Categories -->
-                        <div>
-                            <label class="editor-label">التصنيفات (افصل بفاصلة)</label>
-                            <input type="text" id="inp-categories" class="editor-input">
-                        </div>
-
-                        <!-- Takhrij -->
-                        <div>
-                            <label class="editor-label">التخريج</label>
-                            <textarea id="inp-takhrij" rows="2" class="editor-input"></textarea>
-                        </div>
-
-                        <!-- Sharh -->
-                        <div>
-                            <label class="editor-label">الشرح</label>
-                            <textarea id="inp-sharh" rows="6" class="editor-input"></textarea>
-                        </div>
-
-                        <!-- Osoul -->
-                        <div>
-                            <label class="editor-label">أصل الحديث</label>
-                            <textarea id="inp-osoul" rows="3" class="editor-input"></textarea>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-4 mt-8 justify-end">
-                        <button type="button" onclick="closeEditor()" class="px-6 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200">إلغاء</button>
-                        <button type="submit" id="save-btn" class="px-6 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 font-bold shadow-lg">حفظ</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
     </main>
 
     <!-- Floating Controls -->
@@ -222,7 +111,7 @@
             <button onclick="changeFontSize(-2)" class="w-10 h-10 flex items-center justify-center text-white rounded-full hover:bg-white/20 transition active:scale-95 text-xl font-bold">-</button>
         </div>
         
-        <!-- Back Button (Only visible in Detail/Editor views) -->
+        <!-- Back Button (Only visible in Detail view) -->
         <button id="fab-back" onclick="goBack()" class="w-14 h-14 bg-emerald-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-emerald-700 transition active:scale-95 border-2 border-white/10 hidden">
             <svg class="w-6 h-6 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"></path></svg>
         </button>
@@ -270,13 +159,10 @@
                 indexName: ALGOLIA_INDEX_NAME,
                 searchClient,
                 rtl: true,
-                // CRITICAL: searchFunction prevents searching unless there is a query.
-                // This stops the initial load from fetching all records (quota saving).
                 searchFunction(helper) {
                     if (helper.state.query) {
                         helper.search();
                     } else {
-                        // If query is empty, clear results and do not search
                         const hits = document.querySelector('#hits');
                         const stats = document.querySelector('#stats');
                         const pagination = document.querySelector('#pagination');
@@ -314,20 +200,16 @@
                         const input = container.querySelector('#custom-search-input');
                         const btn = container.querySelector('#custom-search-btn');
 
-                        // Search ONLY on Enter
                         input.addEventListener('keypress', (event) => {
                             if (event.key === 'Enter') {
                                 refine(input.value);
                             }
                         });
 
-                        // Search ONLY on Click
                         btn.addEventListener('click', () => {
                             refine(input.value);
                         });
-                        
                     }
-
                     const input = document.querySelector('#custom-search-input');
                     if (input && document.activeElement !== input) {
                         input.value = query;
@@ -419,18 +301,16 @@
             search.start();
         } catch(e) {
             console.error("Initialization Error:", e);
-            document.body.innerHTML = `<div class="p-10 text-center text-red-600">حدث خطأ في تحميل التطبيق. يرجى تحديث الصفحة.<br><small>${e.message}</small></div>`;
         }
 
         // ------------------------------------------
         // 4. URL & DEEP LINKING LOGIC
         // ------------------------------------------
         window.addEventListener('load', () => {
-            // Check if URL has ?id=
             const urlParams = new URLSearchParams(window.location.search);
             const initialId = urlParams.get('id');
             if (initialId) {
-                openDetail(initialId, false); // Don't push history on initial load
+                openDetail(initialId, false);
             }
         });
 
@@ -448,16 +328,13 @@
             const url = `${window.location.origin}${window.location.pathname}?id=${id}`;
             if (navigator.clipboard) {
                 navigator.clipboard.writeText(url).then(() => {
-                    // Small toast or visual feedback
                     const btn = document.getElementById('share-btn');
                     if(btn) {
                         const original = btn.innerHTML;
                         btn.innerHTML = `<span class="text-green-600 font-bold">تم النسخ!</span>`;
                         setTimeout(() => btn.innerHTML = original, 2000);
-                    } else {
-                        alert('تم نسخ رابط الحديث');
                     }
-                }).catch(err => alert('فشل النسخ'));
+                });
             } else {
                 prompt("انسخ الرابط التالي:", url);
             }
@@ -524,7 +401,6 @@
         function showView(viewId) {
             document.getElementById('search-view').style.display = 'none';
             document.getElementById('detail-view').style.display = 'none';
-            document.getElementById('editor-view').style.display = 'none';
             document.getElementById('fab-back').style.display = 'none';
 
             document.getElementById(viewId).style.display = 'block';
@@ -537,7 +413,6 @@
 
         function goBack() {
             showView('search-view');
-            // Clean URL when going back
             const cleanUrl = window.location.pathname;
             window.history.pushState({}, '', cleanUrl);
         }
@@ -545,7 +420,6 @@
         function goHome() {
             const input = document.querySelector('#custom-search-input');
             if(input) input.value = '';
-            // Go to root URL
             window.location.href = window.location.pathname;
         }
 
@@ -557,7 +431,6 @@
             const container = document.getElementById('detail-content');
             container.innerHTML = '<div class="text-center py-20 text-emerald-600">جاري تحميل الحديث...</div>';
             
-            // Update URL
             if (updateHistory) {
                 const newUrl = `${window.location.pathname}?id=${id}`;
                 window.history.pushState({ id: id }, '', newUrl);
@@ -652,13 +525,6 @@
                         </div>
                     </div>
 
-                    <div class="flex justify-center mb-8">
-                         <button onclick="openEditor('${hadith.objectID}')" class="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 px-6 py-2 rounded-full text-sm font-bold flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                            تعديل الحديث
-                         </button>
-                    </div>
-
                     <div class="border-t border-gray-100 pt-8 grid grid-cols-1 md:grid-cols-2 gap-6 text-lg">
                         <div class="border-b md:border-b-0 border-gray-50 pb-4">
                             <h3 class="text-emerald-700 font-bold text-base mb-2">الراوي</h3>
@@ -701,100 +567,6 @@
 
                 </div>
             `;
-        }
-
-        // ------------------------------------------
-        // 8. EDITOR LOGIC (Add & Edit)
-        // ------------------------------------------
-        let editingId = null;
-
-        async function openEditor(id) {
-            showView('editor-view');
-            editingId = id;
-            const titleEl = document.getElementById('editor-title');
-            const form = document.getElementById('hadith-form');
-            form.reset();
-
-            if (id) {
-                titleEl.textContent = 'تعديل الحديث';
-                try {
-                    const doc = await db.collection('hadiths').doc(id).get();
-                    if (doc.exists) {
-                        const data = doc.data();
-                        document.getElementById('edit-id').value = id;
-                        document.getElementById('inp-custom-id').value = data.id || '';
-                        document.getElementById('inp-text').value = data.text || '';
-                        document.getElementById('inp-rawi').value = Array.isArray(data.rawi) ? data.rawi.join(', ') : (data.rawi || '');
-                        document.getElementById('inp-muhaddith').value = data.muhaddith || '';
-                        document.getElementById('inp-hukm').value = data.hukm || '';
-                        document.getElementById('inp-source').value = data.source || '';
-                        document.getElementById('inp-page').value = data.page_or_number || '';
-                        document.getElementById('inp-takhrij').value = data.takhrij || '';
-                        document.getElementById('inp-sharh').value = data.sharh || '';
-                        document.getElementById('inp-osoul').value = data.osoul || '';
-                        document.getElementById('inp-categories').value = Array.isArray(data.categories) ? data.categories.join(', ') : (data.categories || '');
-                    }
-                } catch(e) { console.error(e); alert('خطأ في تحميل البيانات'); }
-            } else {
-                titleEl.textContent = 'إضافة حديث جديد';
-                document.getElementById('edit-id').value = '';
-            }
-        }
-
-        function closeEditor() {
-            if (editingId) {
-                openDetail(editingId);
-            } else {
-                goBack();
-            }
-        }
-
-        async function saveHadith(e) {
-            e.preventDefault();
-            const btn = document.getElementById('save-btn');
-            const originalText = btn.textContent;
-            btn.textContent = 'جاري الحفظ...';
-            btn.disabled = true;
-
-            const id = document.getElementById('edit-id').value;
-            const parseArray = (val) => val ? val.split('،').join(',').split(',').map(s => s.trim()).filter(Boolean) : [];
-
-            const data = {
-                id: document.getElementById('inp-custom-id').value,
-                text: document.getElementById('inp-text').value,
-                rawi: parseArray(document.getElementById('inp-rawi').value),
-                muhaddith: document.getElementById('inp-muhaddith').value,
-                hukm: document.getElementById('inp-hukm').value,
-                source: document.getElementById('inp-source').value,
-                page_or_number: document.getElementById('inp-page').value,
-                takhrij: document.getElementById('inp-takhrij').value,
-                sharh: document.getElementById('inp-sharh').value,
-                osoul: document.getElementById('inp-osoul').value,
-                categories: parseArray(document.getElementById('inp-categories').value),
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
-
-            try {
-                if (id) {
-                    await db.collection('hadiths').doc(id).update(data);
-                    alert('تم تعديل الحديث بنجاح');
-                    openDetail(id);
-                } else {
-                    const docRef = await db.collection('hadiths').add(data);
-                    alert('تم إضافة الحديث بنجاح');
-                    openDetail(docRef.id);
-                }
-            } catch (error) {
-                console.error("Error writing document: ", error);
-                if (error.code === 'permission-denied') {
-                    alert('عذراً، ليس لديك صلاحية الكتابة. يرجى التحقق من قواعد Firebase.');
-                } else {
-                    alert('فشل الحفظ: ' + error.message);
-                }
-            } finally {
-                btn.textContent = originalText;
-                btn.disabled = false;
-            }
         }
 
         // ------------------------------------------
