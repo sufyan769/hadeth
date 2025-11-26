@@ -29,15 +29,15 @@
         /* InstantSearch Overrides for Minimal Design */
         .ais-SearchBox-input {
             border-radius: 9999px;
-            padding: 12px 50px 12px 20px;
+            padding: 12px 20px 12px 60px; /* Adjusted padding for left button */
             border: 2px solid #1f2937; /* Black border as requested */
             box-shadow: none;
             font-family: 'Amiri', serif;
             font-size: 1.1rem;
+            width: 100%;
         }
-        .ais-SearchBox-submit { left: 10px; right: auto; transform: none; width: auto; }
-        .ais-SearchBox-submitIcon { width: 20px; height: 20px; fill: #059669; }
-        .ais-SearchBox-reset { display: none; }
+        /* Hide default submit/reset since we use custom ones */
+        .ais-SearchBox-submit, .ais-SearchBox-reset { display: none; }
         
         .ais-Pagination-item--selected .ais-Pagination-link {
             background-color: #059669;
@@ -95,7 +95,7 @@
     <!-- Navbar -->
     <nav class="border-b border-gray-100 py-4 sticky top-0 bg-white/95 backdrop-blur z-40">
         <div class="max-w-4xl mx-auto px-4 flex justify-between items-center">
-            <h1 class="text-xl font-bold font-amiri text-emerald-800 cursor-pointer select-none" onclick="goHome()">بيان</h1>
+            <h1 class="text-xl font-bold font-amiri text-emerald-800 cursor-pointer select-none" onclick="goHome()">منصة بيان</h1>
             <button onclick="openEditor(null)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-full text-sm font-bold transition flex items-center gap-2">
                 <span>+</span> <span>إضافة حديث</span>
             </button>
@@ -270,36 +270,101 @@
                 indexName: ALGOLIA_INDEX_NAME,
                 searchClient,
                 rtl: true,
+                // CRITICAL: searchFunction prevents searching unless there is a query.
+                // This stops the initial load from fetching all records (quota saving).
+                searchFunction(helper) {
+                    if (helper.state.query) {
+                        helper.search();
+                    } else {
+                        // If query is empty, clear results and do not search
+                        const hits = document.querySelector('#hits');
+                        const stats = document.querySelector('#stats');
+                        const pagination = document.querySelector('#pagination');
+                        if (hits) hits.innerHTML = '';
+                        if (stats) stats.innerHTML = '';
+                        if (pagination) pagination.innerHTML = '';
+                    }
+                }
             });
 
+            // CUSTOM SEARCH BOX (Manual Trigger Only)
+            // Replaces standard widget to allow search ONLY on Enter or Click
+            const customSearchBox = instantsearch.connectors.connectSearchBox(
+                (renderOptions, isFirstRender) => {
+                    const { query, refine, widgetParams } = renderOptions;
+
+                    if (isFirstRender) {
+                        const container = document.querySelector(widgetParams.container);
+                        container.innerHTML = `
+                            <div class="relative w-full">
+                                <input 
+                                    type="search" 
+                                    id="custom-search-input"
+                                    class="ais-SearchBox-input focus:ring-2 focus:ring-emerald-500/20 outline-none w-full shadow-sm"
+                                    placeholder="${widgetParams.placeholder}"
+                                    style="padding-left: 3.5rem; padding-right: 1.5rem;" 
+                                >
+                                <button id="custom-search-btn" class="absolute left-2 top-1/2 -translate-y-1/2 bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-full transition shadow-md flex items-center justify-center cursor-pointer">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        `;
+
+                        const input = container.querySelector('#custom-search-input');
+                        const btn = container.querySelector('#custom-search-btn');
+
+                        // Search ONLY on Enter
+                        input.addEventListener('keypress', (event) => {
+                            if (event.key === 'Enter') {
+                                refine(input.value);
+                            }
+                        });
+
+                        // Search ONLY on Click
+                        btn.addEventListener('click', () => {
+                            refine(input.value);
+                        });
+                        
+                        // Prevent search on typing (standard 'input' event listener is omitted intentionally)
+                    }
+
+                    // Sync input value if needed (e.g. from URL), but don't steal focus
+                    const input = document.querySelector('#custom-search-input');
+                    if (input && document.activeElement !== input) {
+                        input.value = query;
+                    }
+                }
+            );
+
             // CUSTOM HITS WIDGET WITH HYDRATION
-            // This replaces the standard hits widget to allow fetching missing data from Firestore
             const customHits = instantsearch.connectors.connectHits(
                 (renderOptions, isFirstRender) => {
                     const { hits, widgetParams } = renderOptions;
                     const container = document.querySelector(widgetParams.container);
 
                     if (!hits.length) {
-                        container.innerHTML = '<div class="text-center py-10 text-gray-500">لا توجد نتائج مطابقة لبحثك.</div>';
+                        // Only show message if a search has been performed (hits array exists but empty)
+                        // With searchFunction blocking empty queries, hits might be empty initially, handled there.
+                        if (document.querySelector('#custom-search-input')?.value) {
+                             container.innerHTML = '<div class="text-center py-10 text-gray-500">لا توجد نتائج مطابقة لبحثك.</div>';
+                        }
                         return;
                     }
 
-                    // 1. Render Initial List (Using available Algolia data)
+                    // 1. Render Initial List
                     container.innerHTML = hits.map(hit => {
-                        // Prefer 'id' field if available, otherwise objectID.
                         const targetId = hit.id || hit.objectID;
                         
-                        // Initial Values (might be undefined)
                         const rawiText = Array.isArray(hit.rawi) ? hit.rawi.join('، ') : (hit.rawi || '');
                         const sourceText = hit.source || 'جاري التحميل...';
                         const hukmText = hit.hukm || '';
                         
-                        // Determine styling based on text (even partial)
                         let hukmClass = 'text-gray-600 bg-gray-50';
                         if (hukmText.includes('صحيح')) hukmClass = 'text-green-700 bg-green-50';
                         else if (hukmText.includes('ضعيف')) hukmClass = 'text-red-700 bg-red-50';
 
-                        // Unique IDs for DOM elements to update later
                         const domId = `hit-${hit.objectID}`;
 
                         return `
@@ -318,10 +383,8 @@
                         `;
                     }).join('');
 
-                    // 2. Hydrate Data from Firestore (Background Fetch)
-                    // We extract IDs that need fetching
+                    // 2. Hydrate Data
                     const idsToFetch = hits.map(h => {
-                        // Handle composite IDs like "123-1" -> "123" for Firestore lookup
                         let cleanId = h.objectID;
                         if (h.id) cleanId = h.id;
                         else if (String(h.objectID).includes('-')) cleanId = String(h.objectID).split('-')[0];
@@ -336,24 +399,13 @@
                 instantsearch.widgets.configure({
                     attributesToRetrieve: ['*'], 
                 }),
-                instantsearch.widgets.searchBox({
+                
+                // Use our Custom Search Box
+                customSearchBox({
                     container: '#searchbox',
                     placeholder: 'اكتب كلمة للبحث (مثلاً: إنما الأعمال بالنيات)...',
-                    showReset: false,
-                    showSubmit: true,
-                    cssClasses: {
-                        input: 'focus:ring-2 focus:ring-emerald-500/20 outline-none w-full shadow-sm',
-                    },
-                    queryHook(query, search) {
-                        if (query.length > 500) {
-                            search(query.substring(0, 500));
-                        } else {
-                            search(query);
-                        }
-                    },
                 }),
                 
-                // Use Custom Hits Widget instead of standard
                 customHits({
                     container: '#hits',
                 }),
@@ -381,25 +433,13 @@
         }
 
         // ------------------------------------------
-        // 4. HYDRATION LOGIC (The Fix)
+        // 4. HYDRATION LOGIC
         // ------------------------------------------
         async function hydrateHits(items) {
-            // items is array of { objectID, dbKey }
-            // Since Firestore 'in' query limit is 30 (previously 10), and page size is 20, we can do one batch usually.
-            // We need to fetch by document key OR by 'id' field.
-            // To be safe and fast, let's try fetching by document key for all first.
-            
-            // Map keys for easy lookup
             const keys = items.map(i => i.dbKey);
-            
-            // Use batched get if possible, or individual promises if keys are non-uniform
-            // Firestore SDK compat doesn't support 'getAll' easily on client? 
-            // Actually 'in' query on documentId() is best.
-            
             if (keys.length === 0) return;
 
             try {
-                // Fetch using 'in' query on documentId
                 const q = db.collection('hadiths').where(firebase.firestore.FieldPath.documentId(), 'in', keys);
                 const snapshot = await q.get();
                 
@@ -408,15 +448,10 @@
                     foundDocs[doc.id] = doc.data();
                 });
 
-                // Update DOM
                 items.forEach(item => {
                     const data = foundDocs[item.dbKey];
                     if (data) {
                         updateHitDOM(item.objectID, data);
-                    } else {
-                        // If not found by key, try fallback query for 'id' field (only for missing ones)
-                        // This might be slow for many missing items, but it's a fallback.
-                        // For now, let's assume keys match mostly.
                     }
                 });
             } catch (e) {
@@ -427,27 +462,23 @@
         function updateHitDOM(objectID, data) {
             const domId = `hit-${objectID}`;
             
-            // Update Source
             const sourceEl = document.getElementById(`${domId}-source`);
             if (sourceEl && data.source) {
                 sourceEl.textContent = Array.isArray(data.source) ? data.source[0] : data.source;
             }
 
-            // Update Hukm
             const hukmEl = document.getElementById(`${domId}-hukm`);
             if (hukmEl && data.hukm) {
                 const val = Array.isArray(data.hukm) ? data.hukm[0] : data.hukm;
                 hukmEl.textContent = val;
                 hukmEl.classList.remove('hidden');
                 
-                // Update Color
                 hukmEl.className = `px-2 py-0.5 rounded border border-gray-100 font-bold ${
                     val.includes('صحيح') ? 'text-green-700 bg-green-50' : 
                     val.includes('ضعيف') ? 'text-red-700 bg-red-50' : 'text-gray-600 bg-gray-50'
                 }`;
             }
 
-            // Update Rawi
             const rawiEl = document.getElementById(`${domId}-rawi`);
             if (rawiEl && data.rawi) {
                 const val = Array.isArray(data.rawi) ? data.rawi.join('، ') : data.rawi;
@@ -478,7 +509,7 @@
         }
         
         function goHome() {
-            const input = document.querySelector('.ais-SearchBox-input');
+            const input = document.querySelector('#custom-search-input');
             if(input) input.value = '';
             window.location.reload(); 
         }
@@ -493,16 +524,12 @@
 
             try {
                 let data = null;
-                
-                // 1. Try Direct Document Access (Fastest) - assumes id is the document key
                 const docRef = db.collection('hadiths').doc(String(id));
                 const docSnap = await docRef.get();
 
                 if (docSnap.exists) {
                     data = { objectID: docSnap.id, ...docSnap.data() };
                 } else {
-                    // 2. Fallback: Search by 'id' field (String)
-                    console.log(`Document key ${id} not found directly. Trying fallback query by 'id' field...`);
                     const qString = db.collection('hadiths').where('id', '==', String(id)).limit(1);
                     const snapString = await qString.get();
                     
@@ -510,7 +537,6 @@
                         const d = snapString.docs[0];
                         data = { objectID: d.id, ...d.data() };
                     } else if (!isNaN(Number(id))) {
-                         // 3. Fallback: Search by 'id' field (Number)
                         const qNum = db.collection('hadiths').where('id', '==', Number(id)).limit(1);
                         const snapNum = await qNum.get();
                          if (!snapNum.empty) {
@@ -519,17 +545,12 @@
                         }
                     }
 
-                    // 4. Fallback: Strip suffix (e.g., "175509-1" -> "175509")
                     if (!data && String(id).includes('-')) {
                         const cleanId = String(id).split('-')[0];
-                        console.log(`Trying stripped ID: ${cleanId}`);
-                        
-                        // Try Doc Key with clean ID
                         const docClean = await db.collection('hadiths').doc(cleanId).get();
                         if (docClean.exists) {
                              data = { objectID: docClean.id, ...docClean.data() };
                         } else {
-                            // Try Field 'id' with clean ID
                             const qClean = await db.collection('hadiths').where('id', '==', cleanId).limit(1).get();
                             if (!qClean.empty) {
                                 data = { objectID: qClean.docs[0].id, ...qClean.docs[0].data() };
@@ -562,18 +583,15 @@
         function renderHadithDetail(hadith) {
             const container = document.getElementById('detail-content');
             
-            // Format Text (Split by dot)
             const formattedText = cleanText(hadith.text).split(/(?<=[.])\s+/).map(line => line.trim() ? `<p class="mb-4">${line}</p>` : '').join('');
             const formattedSharh = cleanText(hadith.sharh || '').split(/(?<=[.])\s+/).map(line => line.trim() ? `<p class="mb-4">${line}</p>` : '').join('');
             const formattedOsoul = cleanText(hadith.osoul || '').split(/(?<=[.])\s+/).map(line => line.trim() ? `<p class="mb-4">${line}</p>` : '').join('');
 
-            // Array Helpers
             const cats = Array.isArray(hadith.categories) ? hadith.categories : (hadith.categories ? [hadith.categories] : []);
             const rawis = Array.isArray(hadith.rawi) ? hadith.rawi : (hadith.rawi ? [hadith.rawi] : []);
 
             container.innerHTML = `
                 <div class="px-2">
-                    <!-- Header -->
                     <div class="text-center mb-8">
                         <div class="flex flex-wrap justify-center gap-2 mb-6 text-sm">
                              ${hadith.hukm ? `<span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg border border-gray-200">الحكم: ${hadith.hukm}</span>` : ''}
@@ -585,7 +603,6 @@
                         </div>
                     </div>
 
-                    <!-- Actions -->
                     <div class="flex justify-center mb-8">
                          <button onclick="openEditor('${hadith.objectID}')" class="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 px-6 py-2 rounded-full text-sm font-bold flex items-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
@@ -609,7 +626,6 @@
                             <div class="text-amber-900 font-amiri leading-relaxed">${hadith.takhrij || '-'}</div>
                         </div>
                         
-                        <!-- Categories Smart Links -->
                         ${cats.length ? `
                         <div class="md:col-span-2 pb-4">
                             <h3 class="text-emerald-700 font-bold text-base mb-3">التصنيفات</h3>
@@ -619,7 +635,6 @@
                         </div>` : ''}
                     </div>
 
-                    <!-- Sharh -->
                     <div class="mt-8 bg-gray-50 rounded-xl p-6 border border-gray-100">
                         <h3 class="text-xl font-bold font-amiri text-gray-800 mb-4 border-b border-gray-200 pb-2">الشرح</h3>
                         <div class="text-gray-700 font-amiri leading-loose content-scalable text-justify" style="font-size: ${currentFontSize - 2}px">
@@ -627,7 +642,6 @@
                         </div>
                     </div>
 
-                    <!-- Osoul -->
                     ${hadith.osoul ? `
                     <div class="mt-8 pt-6 border-t border-gray-100">
                         <h3 class="text-lg font-bold font-amiri text-gray-800 mb-2">أصل الحديث</h3>
@@ -653,15 +667,13 @@
             form.reset();
 
             if (id) {
-                // Edit Mode
                 titleEl.textContent = 'تعديل الحديث';
                 try {
                     const doc = await db.collection('hadiths').doc(id).get();
                     if (doc.exists) {
                         const data = doc.data();
                         document.getElementById('edit-id').value = id;
-                        // Populate Fields
-                        document.getElementById('inp-custom-id').value = data.id || ''; // Populate ID field
+                        document.getElementById('inp-custom-id').value = data.id || '';
                         document.getElementById('inp-text').value = data.text || '';
                         document.getElementById('inp-rawi').value = Array.isArray(data.rawi) ? data.rawi.join(', ') : (data.rawi || '');
                         document.getElementById('inp-muhaddith').value = data.muhaddith || '';
@@ -675,7 +687,6 @@
                     }
                 } catch(e) { console.error(e); alert('خطأ في تحميل البيانات'); }
             } else {
-                // Add Mode
                 titleEl.textContent = 'إضافة حديث جديد';
                 document.getElementById('edit-id').value = '';
             }
@@ -683,10 +694,8 @@
 
         function closeEditor() {
             if (editingId) {
-                // Go back to details
                 openDetail(editingId);
             } else {
-                // Go back to search
                 goBack();
             }
         }
@@ -699,12 +708,10 @@
             btn.disabled = true;
 
             const id = document.getElementById('edit-id').value;
-            
-            // Helper to split comma arrays
             const parseArray = (val) => val ? val.split('،').join(',').split(',').map(s => s.trim()).filter(Boolean) : [];
 
             const data = {
-                id: document.getElementById('inp-custom-id').value, // Save the custom ID field
+                id: document.getElementById('inp-custom-id').value,
                 text: document.getElementById('inp-text').value,
                 rawi: parseArray(document.getElementById('inp-rawi').value),
                 muhaddith: document.getElementById('inp-muhaddith').value,
@@ -750,12 +757,15 @@
         }
 
         function smartSearch(term) {
-            goBack(); // Go to search view
-            // We need to set the query in instantsearch
-            const input = document.querySelector('.ais-SearchBox-input');
-            if (input) {
+            goBack();
+            // Since we use a custom input now, we just update it and trigger search manually? 
+            // Or better: update input and call search helper if we had access.
+            // With custom widget, we need to find the input and trigger event.
+            const input = document.querySelector('#custom-search-input');
+            const btn = document.querySelector('#custom-search-btn');
+            if (input && btn) {
                 input.value = term;
-                input.dispatchEvent(new Event('input', { bubbles: true }));
+                btn.click();
             }
         }
 
