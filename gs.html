@@ -51,11 +51,59 @@
             position: fixed;
             bottom: 20px;
             right: 20px;
-            z-index: 9999;
+            z-index: 40;
             display: flex;
             flex-direction: column;
             gap: 10px;
             align-items: center;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 50;
+            display: none; /* Hidden by default */
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 1rem;
+            width: 100%;
+            max-width: 42rem; /* max-w-2xl */
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .editor-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-family: 'Amiri', serif;
+            font-size: 1rem;
+            margin-top: 4px;
+        }
+        .editor-input:focus {
+            outline: none;
+            border-color: #059669;
+            ring: 2px solid #059669;
+        }
+        .editor-label {
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: #047857;
+            margin-bottom: 2px;
+            display: block;
         }
     </style>
 <script type="importmap">
@@ -75,7 +123,7 @@
     <nav class="border-b border-gray-100 py-4 sticky top-0 bg-white/95 backdrop-blur z-40">
         <div class="max-w-4xl mx-auto px-4 flex justify-between items-center">
             <h1 class="text-xl font-bold font-amiri text-emerald-800 cursor-pointer select-none" onclick="goHome()">بيان</h1>
-            <!-- Add button removed as requested -->
+            <a href="gnv.html" class="text-xs text-gray-400 hover:text-emerald-600 font-medium">لوحة الإدارة</a>
         </div>
     </nav>
 
@@ -117,6 +165,85 @@
         </button>
     </div>
 
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="modal-overlay">
+        <div class="modal-content animate-fade-in-up">
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10 rounded-t-2xl">
+                <h2 class="text-xl font-bold text-gray-800 font-amiri">تعديل الحديث</h2>
+                <button onclick="closeEditModal()" class="text-gray-400 hover:text-red-500">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="editor-label">رقم الحديث (ID)</label>
+                        <input type="text" id="modal-id" class="editor-input bg-gray-100 cursor-not-allowed" disabled>
+                    </div>
+                    <div>
+                        <label class="editor-label">الصفحة / الرقم</label>
+                        <input type="text" id="modal-page" class="editor-input">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="editor-label">نص الحديث</label>
+                    <textarea id="modal-text" rows="5" class="editor-input"></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="editor-label">الراوي (افصل بفاصلة)</label>
+                        <input type="text" id="modal-rawi" class="editor-input">
+                    </div>
+                     <div>
+                        <label class="editor-label">المحدث</label>
+                        <input type="text" id="modal-muhaddith" class="editor-input">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="editor-label">الحكم</label>
+                        <input type="text" id="modal-hukm" class="editor-input">
+                    </div>
+                    <div>
+                        <label class="editor-label">المصدر</label>
+                        <input type="text" id="modal-source" class="editor-input">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="editor-label">التصنيفات (افصل بفاصلة)</label>
+                    <input type="text" id="modal-categories" class="editor-input">
+                </div>
+
+                <div>
+                    <label class="editor-label">التخريج</label>
+                    <textarea id="modal-takhrij" rows="2" class="editor-input"></textarea>
+                </div>
+
+                <div>
+                    <label class="editor-label">الشرح</label>
+                    <textarea id="modal-sharh" rows="4" class="editor-input"></textarea>
+                </div>
+
+                 <div>
+                    <label class="editor-label">أصل الحديث</label>
+                    <textarea id="modal-osoul" rows="3" class="editor-input"></textarea>
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 rounded-b-2xl sticky bottom-0">
+                <button onclick="closeEditModal()" class="px-5 py-2 rounded-lg text-gray-600 hover:bg-gray-200 font-medium">إلغاء</button>
+                <button onclick="saveFullEdit()" id="modal-save-btn" class="px-6 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 font-bold shadow-lg flex items-center gap-2">
+                    حفظ التغييرات
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ------------------------------------------
         // 1. CONFIGURATION
@@ -135,9 +262,10 @@
         const ALGOLIA_API_KEY = '76402a5d814264e01fb86ca687d26e30';
         const ALGOLIA_INDEX_NAME = 'firebase-hadeth';
 
-        // GLOBAL VARIABLES (Accessible everywhere)
+        // GLOBAL VARIABLES
         let currentFontSize = 22;
-        let db; // Firestore reference
+        let db; 
+        let currentHadithData = null; // Store current hadith for editing
 
         // ------------------------------------------
         // 2. INITIALIZATION
@@ -173,7 +301,6 @@
                 }
             });
 
-            // CUSTOM SEARCH BOX (Manual Trigger Only)
             const customSearchBox = instantsearch.connectors.connectSearchBox(
                 (renderOptions, isFirstRender) => {
                     const { query, refine, widgetParams } = renderOptions;
@@ -217,7 +344,6 @@
                 }
             );
 
-            // CUSTOM HITS WIDGET WITH HYDRATION
             const customHits = instantsearch.connectors.connectHits(
                 (renderOptions, isFirstRender) => {
                     const { hits, widgetParams } = renderOptions;
@@ -230,7 +356,6 @@
                         return;
                     }
 
-                    // 1. Render Initial List
                     container.innerHTML = hits.map(hit => {
                         const targetId = hit.id || hit.objectID;
                         
@@ -260,7 +385,6 @@
                         `;
                     }).join('');
 
-                    // 2. Hydrate Data
                     const idsToFetch = hits.map(h => {
                         let cleanId = h.objectID;
                         if (h.id) cleanId = h.id;
@@ -479,6 +603,8 @@
                 }
 
                 if (data) {
+                    // STORE CURRENT DATA GLOBALLY
+                    currentHadithData = data;
                     renderHadithDetail(data);
                 } else {
                     container.innerHTML = `
@@ -509,10 +635,10 @@
                     <div class="flex justify-between items-center mb-6 border-b border-gray-100 pb-2">
                         <span class="text-xs font-mono text-gray-300">ID: ${hadith.objectID}</span>
                         <div class="flex gap-2">
-                            <a href="gnv.html?id=${hadith.objectID}" class="flex items-center gap-2 text-gray-600 hover:text-emerald-800 text-sm font-bold bg-gray-50 px-4 py-1.5 rounded-full transition hover:bg-gray-100 border border-gray-200">
+                            <button onclick="openEditModal()" class="flex items-center gap-2 text-gray-600 hover:text-emerald-800 text-sm font-bold bg-gray-50 px-4 py-1.5 rounded-full transition hover:bg-gray-100 border border-gray-200">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                                 تعديل
-                            </a>
+                            </button>
                             <button id="share-btn" onclick="copyLink('${hadith.objectID}')" class="flex items-center gap-2 text-emerald-600 hover:text-emerald-800 text-sm font-bold bg-emerald-50 px-4 py-1.5 rounded-full transition hover:bg-emerald-100">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
                                 مشاركة
@@ -573,6 +699,81 @@
 
                 </div>
             `;
+        }
+
+        // ------------------------------------------
+        // 8. EDIT MODAL LOGIC
+        // ------------------------------------------
+        function openEditModal() {
+            if (!currentHadithData) return;
+            const d = currentHadithData;
+            
+            const setVal = (id, val) => document.getElementById(id).value = val || '';
+            const setArr = (id, val) => document.getElementById(id).value = Array.isArray(val) ? val.join('، ') : (val || '');
+            const setMixed = (id, val) => document.getElementById(id).value = Array.isArray(val) ? val.join('، ') : (val || '');
+
+            setVal('modal-id', d.objectID);
+            setVal('modal-page', d.page_or_number);
+            setVal('modal-text', d.text);
+            
+            setArr('modal-rawi', d.rawi);
+            setMixed('modal-muhaddith', d.muhaddith);
+            setMixed('modal-hukm', d.hukm);
+            setMixed('modal-source', d.source);
+            
+            setArr('modal-categories', d.categories);
+            setVal('modal-takhrij', d.takhrij);
+            setVal('modal-sharh', d.sharh);
+            setVal('modal-osoul', d.osoul);
+
+            document.getElementById('edit-modal').classList.add('active');
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.remove('active');
+        }
+
+        async function saveFullEdit() {
+            const btn = document.getElementById('modal-save-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> جاري الحفظ...`;
+            btn.disabled = true;
+
+            const parseArray = (val) => val ? val.split('،').join(',').split(',').map(s => s.trim()).filter(Boolean) : [];
+            const docId = document.getElementById('modal-id').value;
+
+            const newData = {
+                text: document.getElementById('modal-text').value,
+                rawi: parseArray(document.getElementById('modal-rawi').value),
+                muhaddith: document.getElementById('modal-muhaddith').value,
+                hukm: document.getElementById('modal-hukm').value,
+                source: document.getElementById('modal-source').value,
+                page_or_number: document.getElementById('modal-page').value,
+                takhrij: document.getElementById('modal-takhrij').value,
+                sharh: document.getElementById('modal-sharh').value,
+                osoul: document.getElementById('modal-osoul').value,
+                categories: parseArray(document.getElementById('modal-categories').value),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                await db.collection('hadiths').doc(docId).update(newData);
+                
+                // Update Local Data & UI Immediately
+                currentHadithData = { ...currentHadithData, ...newData, objectID: docId };
+                renderHadithDetail(currentHadithData);
+                closeEditModal();
+                
+                // Show Success Toast (optional, for now just alert/log)
+                // console.log("Saved successfully");
+
+            } catch (error) {
+                console.error("Error updating document: ", error);
+                alert("فشل الحفظ: " + error.message);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
         }
 
         // ------------------------------------------
