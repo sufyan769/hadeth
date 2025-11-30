@@ -110,22 +110,15 @@
 {
   "imports": {
     "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/",
-    "algoliasearch/": "https://aistudiocdn.com/algoliasearch@^5.45.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/"
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "algoliasearch/": "https://aistudiocdn.com/algoliasearch@^5.45.0/"
   }
 }
 </script>
 </head>
 <body>
 
-    <!-- Navbar -->
-    <nav class="border-b border-gray-100 py-4 sticky top-0 bg-white/95 backdrop-blur z-40">
-        <div class="max-w-4xl mx-auto px-4 flex justify-between items-center">
-            <h1 class="text-xl font-bold font-amiri text-emerald-800 cursor-pointer select-none" onclick="goHome()">بيان</h1>
-            <a href="gnv.html" class="text-xs text-gray-400 hover:text-emerald-600 font-medium">لوحة الإدارة</a>
-        </div>
-    </nav>
 
     <!-- Main Content -->
     <main class="max-w-4xl mx-auto px-2 py-6 min-h-screen pb-32">
@@ -697,6 +690,13 @@
                         </div>
                     </div>` : ''}
 
+                    <div class="mt-12 mb-8 flex justify-center">
+                        <button onclick="goBack()" class="flex items-center gap-2 px-6 py-3 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-full transition border border-gray-200 shadow-sm group">
+                             <svg class="w-5 h-5 rotate-180 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
+                             <span class="font-bold">العودة لنتائج البحث</span>
+                        </button>
+                    </div>
+
                 </div>
             `;
         }
@@ -705,6 +705,13 @@
         // 8. EDIT MODAL LOGIC
         // ------------------------------------------
         function openEditModal() {
+            // Password Check
+            const password = prompt("الرجاء إدخال الرمز السري للتعديل:");
+            if (password !== "@") {
+                if (password !== null) alert("الرمز السري غير صحيح!");
+                return;
+            }
+
             if (!currentHadithData) return;
             const d = currentHadithData;
             
