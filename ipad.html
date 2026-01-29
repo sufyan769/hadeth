@@ -7,24 +7,17 @@
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="السيرة">
     <title>السيرة النبوية - عرض المخطوطة</title>
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3342/3342137.png">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Outfit:wght@300;400;600&family=Tajawal:wght@400;700&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;700&display=swap"
         rel="stylesheet">
     <style>
         :root {
             --bg-page: #f9f7f2;
-            --bg-card: #ffffff;
             --sidebar-width: 320px;
             --accent: #2980b9;
             --text-main: #2c3e50;
-            --text-muted: #7f8c8d;
             --border: #e0dcd0;
-            --transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            --transition: all 0.3s ease;
         }
 
         * {
@@ -41,7 +34,6 @@
             height: 100vh;
             display: flex;
             overflow: hidden;
-            touch-action: manipulation;
         }
 
         #sidebar {
@@ -59,21 +51,12 @@
         #sidebar.collapsed {
             width: 0;
             border-left: none;
-            pointer-events: none;
         }
 
         .sidebar-header {
             padding: 25px;
             border-bottom: 2px solid var(--border);
             background: rgba(0, 0, 0, 0.02);
-            flex-shrink: 0;
-        }
-
-        .sidebar-header h2 {
-            font-family: 'Tajawal', sans-serif;
-            font-size: 1.1rem;
-            color: #5d4037;
-            white-space: nowrap;
         }
 
         #sidebar-data {
@@ -90,7 +73,6 @@
             color: var(--accent);
             border-bottom: 1px solid var(--border);
             padding-bottom: 5px;
-            white-space: nowrap;
         }
 
         #sidebar-data ul {
@@ -105,12 +87,8 @@
             font-size: 1.05rem;
             transition: var(--transition);
             color: #5d4d42;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
 
-        #sidebar-data li:hover,
         #sidebar-data li.active {
             background: var(--accent);
             color: white;
@@ -121,9 +99,8 @@
             display: flex;
             flex-direction: column;
             height: 100%;
-            transition: var(--transition);
-            background: radial-gradient(circle at center, #ffffff 0%, #f9f7f2 100%);
             position: relative;
+            overflow: hidden;
         }
 
         .top-nav {
@@ -131,12 +108,9 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
+            background: white;
             border-bottom: 1px solid rgba(0, 0, 0, 0.05);
             z-index: 100;
-            min-height: 65px;
         }
 
         .nav-group {
@@ -156,50 +130,22 @@
             align-items: center;
             justify-content: center;
             font-size: 1.2rem;
-            transition: var(--transition);
-            z-index: 101;
-        }
-
-        .btn-icon:active {
-            background: #eee;
-            transform: scale(0.95);
-        }
-
-        .mode-switcher {
-            display: flex;
-            background: #eeeae0;
-            padding: 4px;
-            border-radius: 12px;
         }
 
         .mode-btn {
             border: none;
-            padding: 6px 15px;
+            padding: 8px 15px;
             border-radius: 10px;
             cursor: pointer;
-            font-family: 'Outfit', sans-serif;
-            font-size: 0.85rem;
-            font-weight: 600;
-            background: transparent;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 0.9rem;
+            background: #eeeae0;
             color: #8d8479;
         }
 
         .mode-btn.active {
-            background: white;
-            color: var(--accent);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .btn-save {
             background: var(--accent);
             color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 10px;
-            font-family: 'Tajawal', sans-serif;
-            font-weight: 600;
-            cursor: pointer;
-            font-size: 0.9rem;
         }
 
         .scroll-container {
@@ -211,13 +157,13 @@
 
         .manuscript-page {
             max-width: 850px;
-            margin: 20px auto 30px;
+            margin: 20px auto 40px;
             background: white;
-            min-height: calc(100% - 80px);
+            min-height: calc(100% - 100px);
             padding: 50px 70px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
             border-radius: 8px;
-            transition: var(--transition);
+            position: relative;
         }
 
         #editable-content {
@@ -225,34 +171,59 @@
             line-height: 2.1;
             color: #34495e;
             text-align: justify;
-        }
-
-        #editable-content[contenteditable="true"] {
             outline: none;
-            border-right: 4px solid var(--accent);
-            padding-right: 20px;
         }
 
+        .footer-nav {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .nav-btn {
+            background: #f1ede4;
+            border: 1px solid var(--border);
+            padding: 12px 25px;
+            border-radius: 12px;
+            font-family: 'Tajawal', sans-serif;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: var(--accent);
+            color: white;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* Tooltip exactly as user.js */
         #smart-tooltip {
             position: absolute;
             z-index: 10000;
             background-color: #333;
             color: #fff;
-            padding: 10px;
-            border-radius: 6px;
-            max-width: 250px;
-            font-size: 0.9em;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 8px;
+            max-width: 280px;
+            font-size: 0.95em;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
             pointer-events: none;
             display: none;
-            transition: opacity 0.2s;
             text-align: right;
+            line-height: 1.6;
         }
 
         #smart-tooltip img {
             max-width: 100%;
             border-radius: 4px;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
             display: block;
         }
 
@@ -260,32 +231,8 @@
             color: var(--accent);
             text-decoration: none;
             border-bottom: 2px solid rgba(41, 128, 185, 0.2);
-            font-weight: 700;
+            font-weight: bold;
             cursor: pointer;
-        }
-
-        #toolbar {
-            display: none;
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            padding: 10px 20px;
-            border-radius: 30px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            z-index: 9999;
-            border: 1px solid var(--border);
-            gap: 15px;
-        }
-
-        #toolbar button {
-            background: none;
-            border: none;
-            font-size: 1.2rem;
-            cursor: pointer;
-            padding: 5px 10px;
         }
 
         #loader {
@@ -296,7 +243,6 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            transition: opacity 0.5s;
         }
 
         .spinner {
@@ -317,12 +263,6 @@
         @media (max-width: 768px) {
             .manuscript-page {
                 padding: 40px 20px;
-                border-radius: 0;
-                margin: 0;
-            }
-
-            .top-nav {
-                padding: 10px 15px;
             }
         }
     </style>
@@ -336,7 +276,7 @@
 
     <aside id="sidebar" class="collapsed">
         <div class="sidebar-header">
-            <h2>فهرس الجزء</h2>
+            <h2 style="font-family: Tajawal;">فهرس الجزء</h2>
         </div>
         <div id="sidebar-data"></div>
     </aside>
@@ -345,24 +285,30 @@
         <nav class="top-nav">
             <div class="nav-group">
                 <button class="btn-icon" id="toggle-sidebar">📚</button>
-                <div class="mode-switcher">
+                <div class="mode-btn-group"
+                    style="display: flex; gap: 5px; background: #eeeae0; padding: 4px; border-radius: 12px;">
                     <button class="mode-btn active" data-mode="read">قراءة</button>
                     <button class="mode-btn" data-mode="edit">تعديل</button>
                 </div>
             </div>
             <div class="nav-group">
-                <button class="btn-icon" onclick="document.getElementById('import-backup-input').click()">📂</button>
-                <button class="btn-save" id="export-btn">💾 حفظ النسخة</button>
+                <button class="btn-icon" onclick="document.getElementById('file-input').click()">📂</button>
+                <button class="btn-icon" id="export-btn">💾</button>
             </div>
         </nav>
 
         <div class="scroll-container">
             <article class="manuscript-page">
                 <div id="editable-content" contenteditable="false">
-                    <div style="text-align: center; margin-top: 20vh; opacity: 0.6;">
-                        <h1 style="font-family: 'Tajawal';">سيرة المصطفى ﷺ</h1>
-                        <p style="margin-top: 15px;">يرجى تحميل ملف البيانات للبدء</p>
+                    <div style="text-align: center; margin-top: 20vh; opacity: 0.5;">
+                        <h1 style="font-family: Tajawal;">سيرة المصطفى ﷺ</h1>
+                        <p style="margin-top: 10px;">يرجى رفع ملف البيانات للبدء</p>
                     </div>
+                </div>
+
+                <div class="footer-nav">
+                    <button id="prev-btn" class="nav-btn" disabled>السابق ⬅️</button>
+                    <button id="next-btn" class="nav-btn">التالي ➡️</button>
                 </div>
             </article>
         </div>
@@ -372,15 +318,7 @@
         <div id="tooltip-content"></div>
     </div>
 
-    <div id="toolbar">
-        <button onclick="exec('bold')"><b>B</b></button>
-        <button onclick="exec('italic')"><i>I</i></button>
-        <button onclick="exec('underline')"><u>U</u></button>
-        <button onclick="exec('insertOrderedList')">1.</button>
-        <button onclick="exec('removeFormat')">🧹</button>
-    </div>
-
-    <input type="file" id="import-backup-input" style="display: none;" accept=".json">
+    <input type="file" id="file-input" style="display: none;" accept=".json">
 
     <script>
         const STORAGE_KEYS = {
@@ -392,187 +330,174 @@
         const elements = {
             sidebar: document.getElementById('sidebar-data'),
             content: document.getElementById('editable-content'),
-            importInput: document.getElementById('import-backup-input'),
             tooltip: document.getElementById('smart-tooltip'),
             tooltipContent: document.getElementById('tooltip-content'),
-            toggleSidebar: document.getElementById('toggle-sidebar'),
-            sidebarParent: document.getElementById('sidebar'),
-            scrollContainer: document.querySelector('.scroll-container')
+            scrollContainer: document.querySelector('.scroll-container'),
+            sidebarParent: document.getElementById('sidebar')
         };
 
         let eventsCache = {};
         let tarajimData = {};
         let currentMode = 'read';
-        let isTransitioning = false;
 
         function init() {
-            loadInitialData();
-            bindSidebarEvents();
-            bindImport();
-            setupModes();
-            setupAutoUX();
-
-            document.getElementById('loader').style.opacity = '0';
-            setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
-        }
-
-        function setupAutoUX() {
-            // Hide sidebar when clicking content
-            elements.scrollContainer.addEventListener('click', () => {
-                if (currentMode === 'read') elements.sidebarParent.classList.add('collapsed');
-            });
-
-            // Auto-next on scroll
-            elements.scrollContainer.addEventListener('scroll', () => {
-                if (currentMode === 'edit' || isTransitioning) return;
-                const { scrollTop, scrollHeight, clientHeight } = elements.scrollContainer;
-                if (scrollTop + clientHeight >= scrollHeight - 30) {
-                    loadNextPage();
-                }
-            });
-        }
-
-        function loadNextPage() {
-            const currentLi = elements.sidebar.querySelector('li.active');
-            if (!currentLi) return;
-
-            let nextLi = null;
-            const allLis = Array.from(elements.sidebar.querySelectorAll('li[data-event-id]'));
-            const currentIndex = allLis.indexOf(currentLi);
-
-            if (currentIndex !== -1 && currentIndex < allLis.length - 1) {
-                nextLi = allLis[currentIndex + 1];
-            }
-
-            if (nextLi && nextLi.dataset.eventId) {
-                isTransitioning = true;
-                activateSidebarItem(nextLi);
-                loadEventContent(nextLi.dataset.eventId);
-                setTimeout(() => { isTransitioning = false; }, 1200);
-            }
-        }
-
-        function loadInitialData() {
             const storedSidebar = localStorage.getItem(STORAGE_KEYS.sidebar);
             eventsCache = JSON.parse(localStorage.getItem(STORAGE_KEYS.events) || '{}');
             tarajimData = JSON.parse(localStorage.getItem(STORAGE_KEYS.tarajim) || '{}');
+
             if (storedSidebar) {
                 elements.sidebar.innerHTML = storedSidebar;
-                const firstLi = elements.sidebar.querySelector('li[data-event-id]');
-                if (firstLi) {
-                    activateSidebarItem(firstLi);
-                    loadEventContent(firstLi.dataset.eventId);
-                }
+                const first = elements.sidebar.querySelector('li[data-event-id]');
+                if (first) loadEvent(first);
             }
+
+            document.getElementById('loader').style.display = 'none';
+            bindEvents();
         }
 
-        function bindSidebarEvents() {
-            elements.sidebar.addEventListener('click', (e) => {
-                const li = e.target.closest('li[data-event-id]');
-                if (li && currentMode === 'read') {
-                    activateSidebarItem(li);
-                    loadEventContent(li.dataset.eventId);
-                    elements.sidebarParent.classList.add('collapsed');
-                }
-            });
-            elements.toggleSidebar.onclick = (e) => {
+        function bindEvents() {
+            // Toggle Sidebar
+            document.getElementById('toggle-sidebar').onclick = (e) => {
                 e.stopPropagation();
                 elements.sidebarParent.classList.toggle('collapsed');
             };
-        }
 
-        function activateSidebarItem(li) {
-            elements.sidebar.querySelectorAll('li').forEach(l => l.classList.remove('active'));
-            li.classList.add('active');
-            li.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
+            // Sidebar Clicks
+            elements.sidebar.onclick = (e) => {
+                const li = e.target.closest('li[data-event-id]');
+                if (li && currentMode === 'read') loadEvent(li);
+            };
 
-        function loadEventContent(id) {
-            elements.content.innerHTML = eventsCache[id] || '<p>المحتوى غير متوفر.</p>';
-            elements.scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
-            applySmartLinks();
-        }
+            // Auto-Hide Sidebar when clicking content
+            elements.scrollContainer.onclick = (e) => {
+                if (currentMode === 'read' && !e.target.closest('.nav-btn')) {
+                    elements.sidebarParent.classList.add('collapsed');
+                }
+            };
 
-        function bindImport() {
-            elements.importInput.onchange = (e) => {
+            // Navigation Buttons
+            document.getElementById('next-btn').onclick = () => navigate(1);
+            document.getElementById('prev-btn').onclick = () => navigate(-1);
+
+            // MODE PICKER
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.onclick = () => {
+                    currentMode = btn.dataset.mode;
+                    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    elements.content.contentEditable = (currentMode === 'edit');
+                };
+            });
+
+            // IMPORT
+            document.getElementById('file-input').onchange = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
                 const reader = new FileReader();
                 reader.onload = (ev) => {
                     const b = JSON.parse(ev.target.result);
                     if (b.sidebar) localStorage.setItem(STORAGE_KEYS.sidebar, b.sidebar);
-                    if (b.events) localStorage.setItem(STORAGE_KEYS.events, JSON.stringify(b.events));
-                    if (b.links) localStorage.setItem(STORAGE_KEYS.tarajim, JSON.stringify(b.links));
+                    if (b.events) localStorage.setItem(STORAGE_KEYS.events, JSON.stringify(typeof b.events === 'string' ? JSON.parse(b.events) : b.events));
+                    if (b.links || b.tarajim) localStorage.setItem(STORAGE_KEYS.tarajim, JSON.stringify(b.links || b.tarajim));
                     location.reload();
                 };
                 reader.readAsText(file);
             };
-        }
 
-        function applySmartLinks() {
+            // EXPORT
+            document.getElementById('export-btn').onclick = () => {
+                const blob = new Blob([JSON.stringify({
+                    sidebar: elements.sidebar.innerHTML,
+                    events: eventsCache,
+                    links: tarajimData
+                })], { type: 'application/json' });
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'sira_backup.json'; a.click();
+            };
+
+            // TRANSLATION TOOLTIP (Event Delegation - MUCH MORE ROBUST)
             elements.content.addEventListener('mouseover', (e) => {
-                const l = e.target.closest('.smart-link, a[data-link-id]');
-                if (l && currentMode === 'read') showTooltip(l);
+                const link = e.target.closest('.smart-link, a[data-link-id]');
+                if (link && currentMode === 'read') showTooltip(link);
             });
             elements.content.addEventListener('mousemove', (e) => {
-                const l = e.target.closest('.smart-link, a[data-link-id]');
-                if (l && currentMode === 'read') positionTooltip(e);
+                const link = e.target.closest('.smart-link, a[data-link-id]');
+                if (link && currentMode === 'read') positionTooltip(e);
             });
-            elements.content.addEventListener('mouseout', () => hideTooltip());
+            elements.content.addEventListener('mouseout', (e) => {
+                if (e.target.closest('.smart-link, a[data-link-id]')) hideTooltip();
+            });
 
+            // iPad Touch Support for Tooltip
             elements.content.addEventListener('touchstart', (e) => {
-                const l = e.target.closest('.smart-link, a[data-link-id]');
-                if (l && currentMode === 'read') {
-                    showTooltip(l);
-                    const r = l.getBoundingClientRect();
+                const link = e.target.closest('.smart-link, a[data-link-id]');
+                if (link && currentMode === 'read') {
+                    showTooltip(link);
+                    const r = link.getBoundingClientRect();
                     elements.tooltip.style.top = (r.bottom + window.scrollY + 10) + 'px';
                     elements.tooltip.style.left = (r.left + window.scrollX) + 'px';
                 }
             });
         }
 
-        function showTooltip(l) {
-            const lid = l.dataset.linkId;
-            const data = tarajimData[lid] || Object.values(tarajimData).find(v => v.العنوان === l.textContent.trim());
+        function loadEvent(li) {
+            const id = li.dataset.eventId;
+            elements.sidebar.querySelectorAll('li').forEach(l => l.classList.remove('active'));
+            li.classList.add('active');
+            elements.content.innerHTML = eventsCache[id] || '<p>المحتوى غير متوفر لهذه الصفحة.</p>';
+            elements.scrollContainer.scrollTop = 0;
+            elements.sidebarParent.classList.add('collapsed');
+            updateNavButtons();
+        }
+
+        function navigate(dir) {
+            const lis = Array.from(elements.sidebar.querySelectorAll('li[data-event-id]'));
+            const active = elements.sidebar.querySelector('li.active');
+            const idx = lis.indexOf(active);
+            const next = lis[idx + dir];
+            if (next) loadEvent(next);
+        }
+
+        function updateNavButtons() {
+            const lis = Array.from(elements.sidebar.querySelectorAll('li[data-event-id]'));
+            const active = elements.sidebar.querySelector('li.active');
+            const idx = lis.indexOf(active);
+            document.getElementById('prev-btn').disabled = (idx <= 0);
+            document.getElementById('next-btn').disabled = (idx >= lis.length - 1);
+        }
+
+        function showTooltip(link) {
+            const lid = link.dataset.linkId;
+            const txt = link.textContent.trim();
+            let data = tarajimData[lid];
+
+            if (!data) { // Fuzzy search lookup
+                for (let k in tarajimData) {
+                    if (tarajimData[k].العنوان === txt || tarajimData[k].كلمة_مفتاحية === txt) {
+                        data = tarajimData[k]; break;
+                    }
+                }
+            }
+
             if (!data) return;
+
             let h = '';
             if (data.صورة) h += `<img src="${data.صورة}">`;
             if (data.العنوان) h += `<strong>${data.العنوان}</strong><br>`;
             if (data.المحتوى || data.المحوى) h += data.المحتوى || data.المحوى;
+
             elements.tooltipContent.innerHTML = h;
             elements.tooltip.style.display = 'block';
         }
 
         function positionTooltip(e) {
-            const o = 12;
-            elements.tooltip.style.top = `${e.pageY + o}px`;
-            elements.tooltip.style.left = `${e.pageX + o}px`;
+            const offset = 15;
+            elements.tooltip.style.top = `${e.pageY + offset}px`;
+            elements.tooltip.style.left = `${e.pageX + offset}px`;
         }
 
         function hideTooltip() { elements.tooltip.style.display = 'none'; }
 
-        function setupModes() {
-            document.querySelectorAll('.mode-btn').forEach(b => {
-                b.onclick = () => {
-                    currentMode = b.dataset.mode;
-                    document.querySelectorAll('.mode-btn').forEach(x => x.classList.remove('active'));
-                    b.classList.add('active');
-                    document.getElementById('toolbar').style.display = (currentMode === 'edit' ? 'flex' : 'none');
-                    elements.content.contentEditable = (currentMode === 'edit');
-                };
-            });
-        }
-
-        document.getElementById('export-btn').onclick = () => {
-            const blob = new Blob([JSON.stringify({ sidebar: elements.sidebar.innerHTML, events: eventsCache, links: tarajimData })], { type: 'application/json' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'sira_backup.json';
-            a.click();
-        };
-
-        function exec(c) { document.execCommand(c, false, null); }
-        window.onload = init;
+        init();
     </script>
 </body>
 
