@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>السيرة النبوية - عرض المخطوطة</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Outfit:wght@300;400;600&family=Tajawal:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-page: #f9f7f2;
+            --bg-card: #ffffff;
+            --sidebar-width: 320px;
+            --accent: #2980b9;
+            --text-main: #2c3e50;
+            --text-muted: #7f8c8d;
+            --border: #e0dcd0;
+            --transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Amiri', serif;
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        /* Sidebar Styling */
+        #sidebar {
+            width: var(--sidebar-width);
+            background: #f1ede4;
+            border-left: 1px solid var(--border);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            transition: var(--transition);
+            z-index: 1000;
+            overflow: hidden;
+        }
+
+        #sidebar.collapsed {
+            width: 0;
+            border-left: none;
+            pointer-events: none;
+        }
+
+        .sidebar-header {
+            padding: 25px;
+            border-bottom: 2px solid var(--border);
+            background: rgba(0, 0, 0, 0.02);
+            flex-shrink: 0;
+        }
+
+        .sidebar-header h2 {
+            font-family: 'Tajawal', sans-serif;
+            font-size: 1.1rem;
+            color: #5d4037;
+            white-space: nowrap;
+        }
+
+        #sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        #sidebar-content h3 {
+            font-family: 'Tajawal', sans-serif;
+            font-size: 1rem;
+            margin: 20px 0 10px;
+            color: var(--accent);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 5px;
+            white-space: nowrap;
+        }
+
+        #sidebar-content ul {
+            list-style: none;
+        }
+
+        #sidebar-content li {
+            padding: 12px 15px;
+            margin-bottom: 5px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.05rem;
+            transition: var(--transition);
+            color: #5d4d42;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #sidebar-content li:hover,
+        #sidebar-content li.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* Main Area */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            transition: var(--transition);
+            background: radial-gradient(circle at center, #ffffff 0%, #f9f7f2 100%);
+            position: relative;
+        }
+
+        .top-nav {
+            padding: 10px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            z-index: 100;
+            min-height: 65px;
+        }
+
+        .nav-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-icon {
+            background: white;
+            border: 1px solid var(--border);
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            transition: var(--transition);
+            z-index: 101;
+        }
+
+        .btn-icon:active {
+            background: #eee;
+            transform: scale(0.95);
+        }
+
+        .mode-switcher {
+            display: flex;
+            background: #eeeae0;
+            padding: 4px;
+            border-radius: 12px;
+        }
+
+        .mode-btn {
+            border: none;
+            padding: 6px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: transparent;
+            color: #8d8479;
+        }
+
+        .mode-btn.active {
+            background: white;
+            color: var(--accent);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-save {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-family: 'Tajawal', sans-serif;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .scroll-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .manuscript-page {
+            max-width: 850px;
+            margin: 20px auto 60px;
+            background: white;
+            min-height: calc(100% - 80px);
+            padding: 60px 80px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            transition: var(--transition);
+        }
+
+        #content {
+            font-size: 1.4rem;
+            line-height: 2;
+            color: #34495e;
+            text-align: justify;
+        }
+
+        #content[contenteditable="true"] {
+            outline: none;
+            border-right: 4px solid var(--accent);
+            padding-right: 20px;
+        }
+
+        /* Popover Styling */
+        #popover {
+            position: fixed;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 360px;
+            max-width: 85vw;
+            z-index: 10000;
+            display: none;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            animation: popIn 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        @keyframes popIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .popover-header {
+            background: linear-gradient(135deg, var(--accent), #3498db);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .popover-header h4 {
+            margin: 0;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 1.1rem;
+        }
+
+        .popover-close {
+            cursor: pointer;
+            font-size: 1.5rem;
+            line-height: 1;
+            padding: 5px;
+        }
+
+        .popover-body {
+            padding: 20px;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: #333;
+            max-height: 250px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .smart-link {
+            color: var(--accent);
+            text-decoration: none;
+            border-bottom: 2px solid rgba(41, 128, 185, 0.2);
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        /* Custom Toolbar for iPad Edit */
+        #toolbar {
+            display: none;
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-radius: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            z-index: 9999;
+            border: 1px solid var(--border);
+            gap: 15px;
+        }
+
+        #toolbar button {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 5px 10px;
+        }
+
+        .error-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-page);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .error-card {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+        }
+
+        #loader {
+            position: fixed;
+            inset: 0;
+            background: white;
+            z-index: 10001;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .manuscript-page {
+                padding: 40px 30px;
+                border-radius: 0;
+                margin: 0;
+            }
+
+            #popover {
+                width: 85vw;
+                left: 7.5vw !important;
+                bottom: 30px !important;
+                top: auto !important;
+            }
+
+            .top-nav {
+                padding: 10px 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="loader">
+        <div class="spinner"></div>
+    </div>
+
+    <div id="error-screen" class="error-overlay">
+        <div class="error-card">
+            <h2 style="font-family: Tajawal; color: #c0392b; margin-bottom: 20px;">تنبيه الأمان المتصفح (CORS)</h2>
+            <p style="margin-bottom: 30px; line-height: 1.6;">بسبب قيود الأمان في المتصفح على iPad، لا يمكن تحميل
+                البيانات تلقائياً. يرجى اختيار ملف النسخة الاحتياطية يدوياً لتفعيل التطبيق.</p>
+            <button class="btn-save" style="padding: 15px 30px; font-size: 1.1rem;"
+                onclick="document.getElementById('file-input').click()">📁 اختر ملف sira-backup-2026-01-12.json</button>
+        </div>
+    </div>
+
+    <aside id="sidebar" class="collapsed">
+        <div class="sidebar-header">
+            <h2>فهرس الجزء</h2>
+        </div>
+        <div id="sidebar-content"></div>
+    </aside>
+
+    <main>
+        <nav class="top-nav">
+            <div class="nav-group">
+                <button class="btn-icon" id="toggle-sidebar">📚</button>
+                <div class="mode-switcher">
+                    <button class="mode-btn active" data-mode="read">قراءة</button>
+                    <button class="mode-btn" data-mode="edit">تعديل</button>
+                </div>
+            </div>
+            <div class="nav-group">
+                <button class="btn-icon" onclick="document.getElementById('file-input').click()">📂</button>
+                <button class="btn-save" id="export-btn">💾 حفظ النسخة</button>
+            </div>
+        </nav>
+
+        <div class="scroll-container">
+            <article class="manuscript-page">
+                <div id="content">
+                    <div style="text-align: center; margin-top: 20vh; opacity: 0.6;">
+                        <h1 style="font-family: 'Tajawal';">سيرة المصطفى ﷺ</h1>
+                        <p style="margin-top: 15px;">يرجى تحميل ملف البيانات للبدء</p>
+                    </div>
+                </div>
+            </article>
+        </div>
+    </main>
+
+    <div id="popover">
+        <div class="popover-header">
+            <h4 id="pop-title">تعريف</h4>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span class="popover-type" id="pop-type">ترجمة</span>
+                <span class="popover-close" id="pop-close">&times;</span>
+            </div>
+        </div>
+        <div class="popover-body" id="pop-body"></div>
+    </div>
+
+    <div id="toolbar">
+        <button onclick="exec('bold')"><b>B</b></button>
+        <button onclick="exec('italic')"><i>I</i></button>
+        <button onclick="exec('underline')"><u>U</u></button>
+        <button onclick="exec('insertOrderedList')">1.</button>
+        <button onclick="exec('removeFormat')">🧹</button>
+    </div>
+
+    <input type="file" id="file-input" style="display: none;" accept=".json">
+
+    <script>
+        let db = { sidebar: '', events: {}, links: {} };
+        let tarajim = {};
+        let currentId = null;
+        let currentMode = 'read';
+
+        // Global Elements
+        const popover = document.getElementById('popover');
+        const content = document.getElementById('content');
+        const sidebar = document.getElementById('sidebar');
+
+        async function init() {
+            try {
+                // Attempt to load tarajim
+                const resT = await fetch('data/tarajim.json').catch(() => null);
+                if (resT && resT.ok) tarajim = await resT.json();
+
+                // Attempt to load backup
+                const resB = await fetch('sira-backup-2026-01-12.json').catch(() => null);
+                if (resB && resB.ok) {
+                    loadData(await resB.json());
+                } else {
+                    // If fetch fails on iPad due to CORS, show manual step
+                    if (window.location.protocol === 'file:') {
+                        document.getElementById('error-screen').style.display = 'flex';
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+            document.getElementById('loader').style.opacity = '0';
+            setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+        }
+
+        function loadData(data) {
+            db = data;
+            document.getElementById('error-screen').style.display = 'none';
+            renderSidebar();
+            // Load first event if available
+            const firstLi = document.querySelector('#sidebar-content li[data-event-id]');
+            if (firstLi) firstLi.click();
+        }
+
+        function renderSidebar() {
+            const wrapper = document.getElementById('sidebar-content');
+            wrapper.innerHTML = db.sidebar || '';
+
+            wrapper.querySelectorAll('li[data-event-id]').forEach(li => {
+                li.onclick = (e) => {
+                    if (currentMode === 'edit') return;
+                    wrapper.querySelectorAll('li').forEach(l => l.classList.remove('active'));
+                    li.classList.add('active');
+                    showEvent(li.getAttribute('data-event-id'));
+                };
+            });
+        }
+
+        function showEvent(id) {
+            currentId = id;
+            content.innerHTML = db.events[id] || '';
+            content.contentEditable = (currentMode === 'edit');
+            attachPopovers();
+            document.querySelector('.scroll-container').scrollTop = 0;
+        }
+
+        function attachPopovers() {
+            const links = content.querySelectorAll('.smart-link, a[data-link-id]');
+            links.forEach(a => {
+                // Standard Hover for Desktop
+                a.onmouseenter = (e) => handleInteraction(e, a);
+                // Touch for iPad
+                a.onclick = (e) => {
+                    if (currentMode === 'edit') return;
+                    e.preventDefault();
+                    handleInteraction(e, a);
+                };
+            });
+        }
+
+        function handleInteraction(e, el) {
+            if (currentMode === 'edit') return;
+
+            const lid = el.getAttribute('data-link-id');
+            let lData = (db.links && db.links[lid]) ? db.links[lid] : null;
+            let title = '', body = '', type = 'ترجمة';
+
+            if (lData) {
+                title = lData.العنوان || lData.كلمة_مفتاحية;
+                body = lData.المحتوى;
+            } else {
+                const text = el.textContent.trim();
+                for (let k in tarajim) {
+                    if (tarajim[k].العنوان && tarajim[k].العنوان.includes(text)) {
+                        title = tarajim[k].العنوان;
+                        body = tarajim[k].المحتوى;
+                        type = tarajim[k].النوع;
+                        break;
+                    }
+                }
+            }
+
+            if (title || body) {
+                document.getElementById('pop-title').textContent = title || el.textContent;
+                document.getElementById('pop-body').innerHTML = body || 'وصف غير متوفر';
+                document.getElementById('pop-type').textContent = type || 'تعريف';
+
+                popover.style.display = 'block';
+
+                const rect = el.getBoundingClientRect();
+                let top = rect.bottom + 10;
+                let left = rect.left - (popover.offsetWidth / 2) + (rect.width / 2);
+
+                if (left < 10) left = 10;
+                if (left + popover.offsetWidth > window.innerWidth - 10) left = window.innerWidth - popover.offsetWidth - 10;
+                if (top + popover.offsetHeight > window.innerHeight - 10) top = rect.top - popover.offsetHeight - 10;
+
+                popover.style.top = top + 'px';
+                popover.style.left = left + 'px';
+            }
+        }
+
+        // Toggle Sidebar
+        document.getElementById('toggle-sidebar').onclick = () => {
+            sidebar.classList.toggle('collapsed');
+        };
+
+        // Modes
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.onclick = () => {
+                currentMode = btn.dataset.mode;
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                document.getElementById('toolbar').style.display = (currentMode === 'edit' ? 'flex' : 'none');
+
+                if (currentMode === 'edit') {
+                    content.contentEditable = true;
+                    document.getElementById('sidebar-content').contentEditable = true;
+                } else {
+                    if (currentId) db.events[currentId] = content.innerHTML;
+                    db.sidebar = document.getElementById('sidebar-content').innerHTML;
+                    content.contentEditable = false;
+                    document.getElementById('sidebar-content').contentEditable = false;
+                    renderSidebar();
+                    if (currentId) showEvent(currentId);
+                }
+            };
+        });
+
+        // File Handling
+        document.getElementById('file-input').onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    loadData(JSON.parse(ev.target.result));
+                } catch (e) { alert("ملف JSON غير صالح"); }
+            };
+            reader.readAsText(file);
+        };
+
+        document.getElementById('export-btn').onclick = () => {
+            if (currentMode === 'edit' && currentId) db.events[currentId] = content.innerHTML;
+            db.sidebar = document.getElementById('sidebar-content').innerHTML;
+            const blob = new Blob([JSON.stringify(db)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `sira_backup_ipad_${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+        };
+
+        // Close popover on click away
+        document.addEventListener('click', (e) => {
+            if (!popover.contains(e.target) && !e.target.classList.contains('smart-link') && !e.target.hasAttribute('data-link-id')) {
+                popover.style.display = 'none';
+            }
+        });
+        document.getElementById('pop-close').onclick = () => popover.style.display = 'none';
+
+        function exec(cmd) { document.execCommand(cmd, false, null); }
+
+        init();
+    </script>
+
+</body>
+
+</html>
