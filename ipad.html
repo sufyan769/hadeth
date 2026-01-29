@@ -203,9 +203,10 @@
             cursor: not-allowed;
         }
 
-        /* Tooltip exactly as user.js */
+        /* Tooltip adjusted for iPad (Fixed positioning) */
         #smart-tooltip {
-            position: absolute;
+            position: fixed;
+            /* Crucial for iPad coordinates */
             z-index: 10000;
             background-color: #333;
             color: #fff;
@@ -356,30 +357,25 @@
         }
 
         function bindEvents() {
-            // Toggle Sidebar
             document.getElementById('toggle-sidebar').onclick = (e) => {
                 e.stopPropagation();
                 elements.sidebarParent.classList.toggle('collapsed');
             };
 
-            // Sidebar Clicks
             elements.sidebar.onclick = (e) => {
                 const li = e.target.closest('li[data-event-id]');
                 if (li && currentMode === 'read') loadEvent(li);
             };
 
-            // Auto-Hide Sidebar when clicking content
             elements.scrollContainer.onclick = (e) => {
                 if (currentMode === 'read' && !e.target.closest('.nav-btn')) {
                     elements.sidebarParent.classList.add('collapsed');
                 }
             };
 
-            // Navigation Buttons
             document.getElementById('next-btn').onclick = () => navigate(1);
             document.getElementById('prev-btn').onclick = () => navigate(-1);
 
-            // MODE PICKER
             document.querySelectorAll('.mode-btn').forEach(btn => {
                 btn.onclick = () => {
                     currentMode = btn.dataset.mode;
@@ -389,7 +385,6 @@
                 };
             });
 
-            // IMPORT
             document.getElementById('file-input').onchange = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -404,7 +399,6 @@
                 reader.readAsText(file);
             };
 
-            // EXPORT
             document.getElementById('export-btn').onclick = () => {
                 const blob = new Blob([JSON.stringify({
                     sidebar: elements.sidebar.innerHTML,
@@ -414,29 +408,39 @@
                 const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'sira_backup.json'; a.click();
             };
 
-            // TRANSLATION TOOLTIP (Event Delegation - MUCH MORE ROBUST)
-            elements.content.addEventListener('mouseover', (e) => {
-                const link = e.target.closest('.smart-link, a[data-link-id]');
-                if (link && currentMode === 'read') showTooltip(link);
-            });
-            elements.content.addEventListener('mousemove', (e) => {
-                const link = e.target.closest('.smart-link, a[data-link-id]');
-                if (link && currentMode === 'read') positionTooltip(e);
-            });
-            elements.content.addEventListener('mouseout', (e) => {
-                if (e.target.closest('.smart-link, a[data-link-id]')) hideTooltip();
-            });
+            // --- UNIFIED TOOLTIP LOGIC FOR IPAD ---
 
-            // iPad Touch Support for Tooltip
-            elements.content.addEventListener('touchstart', (e) => {
+            // 1. Mouse support for laptop
+            elements.content.addEventListener('mousemove', (e) => {
+                if (currentMode !== 'read') return;
                 const link = e.target.closest('.smart-link, a[data-link-id]');
-                if (link && currentMode === 'read') {
+                if (link) {
                     showTooltip(link);
-                    const r = link.getBoundingClientRect();
-                    elements.tooltip.style.top = (r.bottom + window.scrollY + 10) + 'px';
-                    elements.tooltip.style.left = (r.left + window.scrollX) + 'px';
+                    positionTooltip(e.clientX, e.clientY);
+                } else {
+                    hideTooltip();
                 }
             });
+
+            // 2. Tap support for iPad
+            elements.content.addEventListener('click', (e) => {
+                if (currentMode !== 'read') return;
+                const link = e.target.closest('.smart-link, a[data-link-id]');
+                if (link) {
+                    e.preventDefault(); e.stopPropagation();
+                    showTooltip(link);
+                    const r = link.getBoundingClientRect();
+                    positionTooltip(r.left, r.bottom + 10);
+                } else {
+                    hideTooltip();
+                }
+            });
+
+            // Hide when scrolling or clicking away
+            elements.scrollContainer.addEventListener('scroll', hideTooltip);
+            document.body.addEventListener('click', (e) => {
+                if (!e.target.closest('.smart-link, a[data-link-id]')) hideTooltip();
+            }, true);
         }
 
         function loadEvent(li) {
@@ -469,30 +473,33 @@
             const lid = link.dataset.linkId;
             const txt = link.textContent.trim();
             let data = tarajimData[lid];
-
-            if (!data) { // Fuzzy search lookup
+            if (!data) {
                 for (let k in tarajimData) {
                     if (tarajimData[k].العنوان === txt || tarajimData[k].كلمة_مفتاحية === txt) {
                         data = tarajimData[k]; break;
                     }
                 }
             }
-
             if (!data) return;
-
             let h = '';
             if (data.صورة) h += `<img src="${data.صورة}">`;
             if (data.العنوان) h += `<strong>${data.العنوان}</strong><br>`;
             if (data.المحتوى || data.المحوى) h += data.المحتوى || data.المحوى;
-
             elements.tooltipContent.innerHTML = h;
             elements.tooltip.style.display = 'block';
         }
 
-        function positionTooltip(e) {
+        function positionTooltip(x, y) {
             const offset = 15;
-            elements.tooltip.style.top = `${e.pageY + offset}px`;
-            elements.tooltip.style.left = `${e.pageX + offset}px`;
+            let finalX = x + offset;
+            let finalY = y + offset;
+            const pW = elements.tooltip.offsetWidth || 280;
+            const pH = elements.tooltip.offsetHeight || 100;
+            if (finalX + pW > window.innerWidth) finalX = window.innerWidth - pW - 10;
+            if (finalY + pH > window.innerHeight) finalY = y - pH - 15;
+            if (finalX < 10) finalX = 10;
+            elements.tooltip.style.left = finalX + 'px';
+            elements.tooltip.style.top = finalY + 'px';
         }
 
         function hideTooltip() { elements.tooltip.style.display = 'none'; }
