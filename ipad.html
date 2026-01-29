@@ -44,7 +44,6 @@
             touch-action: manipulation;
         }
 
-        /* Sidebar similar to user.js logic elements */
         #sidebar {
             width: var(--sidebar-width);
             background: #f1ede4;
@@ -221,7 +220,6 @@
             transition: var(--transition);
         }
 
-        /* The main content area matching user.js elements */
         #editable-content {
             font-size: 1.45rem;
             line-height: 2.1;
@@ -235,7 +233,6 @@
             padding-right: 20px;
         }
 
-        /* Tooltip from user.js / style.css */
         #smart-tooltip {
             position: absolute;
             z-index: 10000;
@@ -361,12 +358,10 @@
 
         <div class="scroll-container">
             <article class="manuscript-page">
-                <div class="editor-canvas">
-                    <div id="editable-content" contenteditable="false">
-                        <div style="text-align: center; margin-top: 20vh; opacity: 0.6;">
-                            <h1 style="font-family: 'Tajawal';">سيرة المصطفى ﷺ</h1>
-                            <p style="margin-top: 15px;">يرجى تحميل ملف البيانات للبدء</p>
-                        </div>
+                <div id="editable-content" contenteditable="false">
+                    <div style="text-align: center; margin-top: 20vh; opacity: 0.6;">
+                        <h1 style="font-family: 'Tajawal';">سيرة المصطفى ﷺ</h1>
+                        <p style="margin-top: 15px;">يرجى تحميل ملف البيانات للبدء</p>
                     </div>
                 </div>
             </article>
@@ -388,7 +383,6 @@
     <input type="file" id="import-backup-input" style="display: none;" accept=".json">
 
     <script>
-        // EXACT SAME LOGIC AS user.js
         const STORAGE_KEYS = {
             sidebar: 'sira_sidebar_html',
             events: 'sira_events_content',
@@ -402,213 +396,184 @@
             tooltip: document.getElementById('smart-tooltip'),
             tooltipContent: document.getElementById('tooltip-content'),
             toggleSidebar: document.getElementById('toggle-sidebar'),
-            sidebarParent: document.getElementById('sidebar')
+            sidebarParent: document.getElementById('sidebar'),
+            scrollContainer: document.querySelector('.scroll-container')
         };
 
         let eventsCache = {};
         let tarajimData = {};
         let currentMode = 'read';
+        let isTransitioning = false;
 
         function init() {
             loadInitialData();
             bindSidebarEvents();
             bindImport();
             setupModes();
+            setupAutoUX();
 
             document.getElementById('loader').style.opacity = '0';
             setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
         }
 
-        function readFromStorage(key, fallback) {
-            const stored = localStorage.getItem(key);
-            if (!stored) return fallback;
-            try { return JSON.parse(stored); } catch (err) { return fallback; }
+        function setupAutoUX() {
+            // Hide sidebar when clicking content
+            elements.scrollContainer.addEventListener('click', () => {
+                if (currentMode === 'read') elements.sidebarParent.classList.add('collapsed');
+            });
+
+            // Auto-next on scroll
+            elements.scrollContainer.addEventListener('scroll', () => {
+                if (currentMode === 'edit' || isTransitioning) return;
+                const { scrollTop, scrollHeight, clientHeight } = elements.scrollContainer;
+                if (scrollTop + clientHeight >= scrollHeight - 30) {
+                    loadNextPage();
+                }
+            });
+        }
+
+        function loadNextPage() {
+            const currentLi = elements.sidebar.querySelector('li.active');
+            if (!currentLi) return;
+
+            let nextLi = null;
+            const allLis = Array.from(elements.sidebar.querySelectorAll('li[data-event-id]'));
+            const currentIndex = allLis.indexOf(currentLi);
+
+            if (currentIndex !== -1 && currentIndex < allLis.length - 1) {
+                nextLi = allLis[currentIndex + 1];
+            }
+
+            if (nextLi && nextLi.dataset.eventId) {
+                isTransitioning = true;
+                activateSidebarItem(nextLi);
+                loadEventContent(nextLi.dataset.eventId);
+                setTimeout(() => { isTransitioning = false; }, 1200);
+            }
         }
 
         function loadInitialData() {
             const storedSidebar = localStorage.getItem(STORAGE_KEYS.sidebar);
-            eventsCache = readFromStorage(STORAGE_KEYS.events, {});
-            tarajimData = readFromStorage(STORAGE_KEYS.tarajim, {});
-
-            if (storedSidebar && storedSidebar.trim()) {
+            eventsCache = JSON.parse(localStorage.getItem(STORAGE_KEYS.events) || '{}');
+            tarajimData = JSON.parse(localStorage.getItem(STORAGE_KEYS.tarajim) || '{}');
+            if (storedSidebar) {
                 elements.sidebar.innerHTML = storedSidebar;
-                activateInitialItem();
-            }
-        }
-
-        function activateInitialItem() {
-            const firstLi = elements.sidebar.querySelector('li[data-event-id]');
-            if (firstLi) {
-                activateSidebarItem(firstLi);
-                loadEventContent(firstLi.dataset.eventId);
+                const firstLi = elements.sidebar.querySelector('li[data-event-id]');
+                if (firstLi) {
+                    activateSidebarItem(firstLi);
+                    loadEventContent(firstLi.dataset.eventId);
+                }
             }
         }
 
         function bindSidebarEvents() {
-            elements.sidebar.addEventListener('click', (event) => {
-                const li = event.target.closest('li[data-event-id]');
-                if (!li || currentMode === 'edit') return;
-                activateSidebarItem(li);
-                loadEventContent(li.dataset.eventId);
+            elements.sidebar.addEventListener('click', (e) => {
+                const li = e.target.closest('li[data-event-id]');
+                if (li && currentMode === 'read') {
+                    activateSidebarItem(li);
+                    loadEventContent(li.dataset.eventId);
+                    elements.sidebarParent.classList.add('collapsed');
+                }
             });
-
-            elements.toggleSidebar.onclick = () => {
+            elements.toggleSidebar.onclick = (e) => {
+                e.stopPropagation();
                 elements.sidebarParent.classList.toggle('collapsed');
             };
         }
 
         function activateSidebarItem(li) {
-            elements.sidebar.querySelectorAll('li').forEach((item) => item.classList.remove('active'));
+            elements.sidebar.querySelectorAll('li').forEach(l => l.classList.remove('active'));
             li.classList.add('active');
+            li.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
-        function loadEventContent(eventId) {
-            const content = eventsCache && Object.prototype.hasOwnProperty.call(eventsCache, eventId)
-                ? eventsCache[eventId]
-                : '';
-            elements.content.innerHTML = content || '<p>لا يوجد محتوى بعد.</p>';
+        function loadEventContent(id) {
+            elements.content.innerHTML = eventsCache[id] || '<p>المحتوى غير متوفر.</p>';
+            elements.scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
             applySmartLinks();
         }
 
         function bindImport() {
-            elements.importInput.addEventListener('change', (event) => {
-                const file = event.target.files && event.target.files[0];
+            elements.importInput.onchange = (e) => {
+                const file = e.target.files[0];
                 if (!file) return;
                 const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const backup = JSON.parse(e.target.result);
-                        if (backup.sidebar) {
-                            localStorage.setItem(STORAGE_KEYS.sidebar, backup.sidebar);
-                            elements.sidebar.innerHTML = backup.sidebar;
-                        }
-                        if (backup.events) {
-                            eventsCache = typeof backup.events === 'string' ? JSON.parse(backup.events) : backup.events;
-                            localStorage.setItem(STORAGE_KEYS.events, JSON.stringify(eventsCache));
-                        }
-                        if (backup.links || backup.tarajim) {
-                            tarajimData = backup.links || backup.tarajim;
-                            localStorage.setItem(STORAGE_KEYS.tarajim, JSON.stringify(tarajimData));
-                        }
-                        activateInitialItem();
-                        alert('تم الاستيراد بنجاح.');
-                    } catch (err) { alert('ملف النسخة الاحتياطية غير صالح.'); }
+                reader.onload = (ev) => {
+                    const b = JSON.parse(ev.target.result);
+                    if (b.sidebar) localStorage.setItem(STORAGE_KEYS.sidebar, b.sidebar);
+                    if (b.events) localStorage.setItem(STORAGE_KEYS.events, JSON.stringify(b.events));
+                    if (b.links) localStorage.setItem(STORAGE_KEYS.tarajim, JSON.stringify(b.links));
+                    location.reload();
                 };
-                reader.readAsText(file, 'utf-8');
-            });
+                reader.readAsText(file);
+            };
         }
 
-        // Tooltip Logic EXACTLY as in user.js
         function applySmartLinks() {
-            if (!elements.content) return;
-            attachSmartLinkListeners();
-        }
-
-        function attachSmartLinkListeners() {
-            // We use delegation for efficiency but same behavior
             elements.content.addEventListener('mouseover', (e) => {
-                const link = e.target.closest('.smart-link, a[data-link-id]');
-                if (link && currentMode === 'read') showTooltip(link);
+                const l = e.target.closest('.smart-link, a[data-link-id]');
+                if (l && currentMode === 'read') showTooltip(l);
             });
             elements.content.addEventListener('mousemove', (e) => {
-                const link = e.target.closest('.smart-link, a[data-link-id]');
-                if (link && currentMode === 'read') positionTooltip(e);
+                const l = e.target.closest('.smart-link, a[data-link-id]');
+                if (l && currentMode === 'read') positionTooltip(e);
             });
-            elements.content.addEventListener('mouseout', (e) => {
-                const link = e.target.closest('.smart-link, a[data-link-id]');
-                if (link) hideTooltip();
-            });
+            elements.content.addEventListener('mouseout', () => hideTooltip());
 
-            // Touch support for iPad
             elements.content.addEventListener('touchstart', (e) => {
-                const link = e.target.closest('.smart-link, a[data-link-id]');
-                if (link && currentMode === 'read') {
-                    showTooltip(link);
-                    const r = link.getBoundingClientRect();
+                const l = e.target.closest('.smart-link, a[data-link-id]');
+                if (l && currentMode === 'read') {
+                    showTooltip(l);
+                    const r = l.getBoundingClientRect();
                     elements.tooltip.style.top = (r.bottom + window.scrollY + 10) + 'px';
                     elements.tooltip.style.left = (r.left + window.scrollX) + 'px';
                 }
             });
         }
 
-        function showTooltip(link) {
-            const lid = link.dataset.linkId;
-            const text = link.textContent.trim();
-            let data = tarajimData[lid];
-
-            // Fallback fuzzy search if ID missing
-            if (!data) {
-                for (let k in tarajimData) {
-                    if (tarajimData[k].العنوان === text || tarajimData[k].كلمة_مفتاحية === text) {
-                        data = tarajimData[k]; break;
-                    }
-                }
-            }
-
+        function showTooltip(l) {
+            const lid = l.dataset.linkId;
+            const data = tarajimData[lid] || Object.values(tarajimData).find(v => v.العنوان === l.textContent.trim());
             if (!data) return;
-
-            let html = '';
-            if (data.صورة) html += `<img src="${data.صورة}">`;
-            if (data.العنوان) html += `<strong>${data.العنوان}</strong><br>`;
-            if (data.المحتوى || data.المحوى) html += data.المحتوى || data.المحوى;
-
-            elements.tooltipContent.innerHTML = html || 'لا توجد بيانات.';
+            let h = '';
+            if (data.صورة) h += `<img src="${data.صورة}">`;
+            if (data.العنوان) h += `<strong>${data.العنوان}</strong><br>`;
+            if (data.المحتوى || data.المحوى) h += data.المحتوى || data.المحوى;
+            elements.tooltipContent.innerHTML = h;
             elements.tooltip.style.display = 'block';
         }
 
-        function positionTooltip(event) {
-            const offset = 12;
-            elements.tooltip.style.top = `${event.pageY + offset}px`;
-            elements.tooltip.style.left = `${event.pageX + offset}px`;
+        function positionTooltip(e) {
+            const o = 12;
+            elements.tooltip.style.top = `${e.pageY + o}px`;
+            elements.tooltip.style.left = `${e.pageX + o}px`;
         }
 
-        function hideTooltip() {
-            elements.tooltip.style.display = 'none';
-            elements.tooltipContent.innerHTML = '';
-        }
+        function hideTooltip() { elements.tooltip.style.display = 'none'; }
 
         function setupModes() {
-            document.querySelectorAll('.mode-btn').forEach(btn => {
-                btn.onclick = () => {
-                    currentMode = btn.dataset.mode;
-                    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
+            document.querySelectorAll('.mode-btn').forEach(b => {
+                b.onclick = () => {
+                    currentMode = b.dataset.mode;
+                    document.querySelectorAll('.mode-btn').forEach(x => x.classList.remove('active'));
+                    b.classList.add('active');
                     document.getElementById('toolbar').style.display = (currentMode === 'edit' ? 'flex' : 'none');
-
-                    if (currentMode === 'edit') {
-                        elements.content.contentEditable = true;
-                        elements.sidebar.contentEditable = true;
-                    } else {
-                        const activeLi = elements.sidebar.querySelector('li.active');
-                        if (activeLi) eventsCache[activeLi.dataset.eventId] = elements.content.innerHTML;
-                        localStorage.setItem(STORAGE_KEYS.events, JSON.stringify(eventsCache));
-                        localStorage.setItem(STORAGE_KEYS.sidebar, elements.sidebar.innerHTML);
-
-                        elements.content.contentEditable = false;
-                        elements.sidebar.contentEditable = false;
-                        applySmartLinks();
-                    }
+                    elements.content.contentEditable = (currentMode === 'edit');
                 };
             });
         }
 
         document.getElementById('export-btn').onclick = () => {
-            const blob = new Blob([JSON.stringify({
-                sidebar: elements.sidebar.innerHTML,
-                events: eventsCache,
-                links: tarajimData
-            })], { type: 'application/json' });
+            const blob = new Blob([JSON.stringify({ sidebar: elements.sidebar.innerHTML, events: eventsCache, links: tarajimData })], { type: 'application/json' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = `sira_backup.json`;
+            a.download = 'sira_backup.json';
             a.click();
         };
 
-        function exec(cmd) { document.execCommand(cmd, false, null); }
-
+        function exec(c) { document.execCommand(c, false, null); }
         window.onload = init;
     </script>
-
 </body>
 
 </html>
