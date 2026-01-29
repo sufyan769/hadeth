@@ -203,10 +203,8 @@
             cursor: not-allowed;
         }
 
-        /* Tooltip adjusted for iPad (Fixed positioning) */
         #smart-tooltip {
             position: fixed;
-            /* Crucial for iPad coordinates */
             z-index: 10000;
             background-color: #333;
             color: #fff;
@@ -219,6 +217,8 @@
             display: none;
             text-align: right;
             line-height: 1.6;
+            opacity: 0;
+            transition: opacity 0.2s;
         }
 
         #smart-tooltip img {
@@ -234,6 +234,9 @@
             border-bottom: 2px solid rgba(41, 128, 185, 0.2);
             font-weight: bold;
             cursor: pointer;
+            padding: 2px 4px;
+            position: relative;
+            z-index: 10;
         }
 
         #loader {
@@ -242,8 +245,10 @@
             background: white;
             z-index: 10001;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
+            gap: 20px;
         }
 
         .spinner {
@@ -273,6 +278,7 @@
 
     <div id="loader">
         <div class="spinner"></div>
+        <div id="loader-text" style="font-family: Tajawal; color: #666;">جاري تحميل المكتبة الضخمة...</div>
     </div>
 
     <aside id="sidebar" class="collapsed">
@@ -294,7 +300,7 @@
             </div>
             <div class="nav-group">
                 <button class="btn-icon" onclick="document.getElementById('file-input').click()">📂</button>
-                <button class="btn-icon" id="export-btn">💾</button>
+                <button class="btn-icon" id="export-btn" title="تصدير نسخة احتياطية">💾</button>
             </div>
         </nav>
 
@@ -322,189 +328,240 @@
     <input type="file" id="file-input" style="display: none;" accept=".json">
 
     <script>
-        const STORAGE_KEYS = {
-            sidebar: 'sira_sidebar_html',
-            events: 'sira_events_content',
-            tarajim: 'sira_tarajim_data'
-        };
+    // --- INDEXED DB MANAGER (To handle large files like 8.7MB) ---
+    const DB_NAME = 'SiraReaderDB';
+    const DB_VERSION = 1;
+    let db;
 
-        const elements = {
-            sidebar: document.getElementById('sidebar-data'),
-            content: document.getElementById('editable-content'),
-            tooltip: document.getElementById('smart-tooltip'),
-            tooltipContent: document.getElementById('tooltip-content'),
-            scrollContainer: document.querySelector('.scroll-container'),
-            sidebarParent: document.getElementById('sidebar')
-        };
-
-        let eventsCache = {};
-        let tarajimData = {};
-        let currentMode = 'read';
-
-        function init() {
-            const storedSidebar = localStorage.getItem(STORAGE_KEYS.sidebar);
-            eventsCache = JSON.parse(localStorage.getItem(STORAGE_KEYS.events) || '{}');
-            tarajimData = JSON.parse(localStorage.getItem(STORAGE_KEYS.tarajim) || '{}');
-
-            if (storedSidebar) {
-                elements.sidebar.innerHTML = storedSidebar;
-                const first = elements.sidebar.querySelector('li[data-event-id]');
-                if (first) loadEvent(first);
-            }
-
-            document.getElementById('loader').style.display = 'none';
-            bindEvents();
-        }
-
-        function bindEvents() {
-            document.getElementById('toggle-sidebar').onclick = (e) => {
-                e.stopPropagation();
-                elements.sidebarParent.classList.toggle('collapsed');
-            };
-
-            elements.sidebar.onclick = (e) => {
-                const li = e.target.closest('li[data-event-id]');
-                if (li && currentMode === 'read') loadEvent(li);
-            };
-
-            elements.scrollContainer.onclick = (e) => {
-                if (currentMode === 'read' && !e.target.closest('.nav-btn')) {
-                    elements.sidebarParent.classList.add('collapsed');
-                }
-            };
-
-            document.getElementById('next-btn').onclick = () => navigate(1);
-            document.getElementById('prev-btn').onclick = () => navigate(-1);
-
-            document.querySelectorAll('.mode-btn').forEach(btn => {
-                btn.onclick = () => {
-                    currentMode = btn.dataset.mode;
-                    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    elements.content.contentEditable = (currentMode === 'edit');
-                };
-            });
-
-            document.getElementById('file-input').onchange = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    const b = JSON.parse(ev.target.result);
-                    if (b.sidebar) localStorage.setItem(STORAGE_KEYS.sidebar, b.sidebar);
-                    if (b.events) localStorage.setItem(STORAGE_KEYS.events, JSON.stringify(typeof b.events === 'string' ? JSON.parse(b.events) : b.events));
-                    if (b.links || b.tarajim) localStorage.setItem(STORAGE_KEYS.tarajim, JSON.stringify(b.links || b.tarajim));
-                    location.reload();
-                };
-                reader.readAsText(file);
-            };
-
-            document.getElementById('export-btn').onclick = () => {
-                const blob = new Blob([JSON.stringify({
-                    sidebar: elements.sidebar.innerHTML,
-                    events: eventsCache,
-                    links: tarajimData
-                })], { type: 'application/json' });
-                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'sira_backup.json'; a.click();
-            };
-
-            // --- UNIFIED TOOLTIP LOGIC FOR IPAD ---
-
-            // 1. Mouse support for laptop
-            elements.content.addEventListener('mousemove', (e) => {
-                if (currentMode !== 'read') return;
-                const link = e.target.closest('.smart-link, a[data-link-id]');
-                if (link) {
-                    showTooltip(link);
-                    positionTooltip(e.clientX, e.clientY);
-                } else {
-                    hideTooltip();
-                }
-            });
-
-            // 2. Tap support for iPad
-            elements.content.addEventListener('click', (e) => {
-                if (currentMode !== 'read') return;
-                const link = e.target.closest('.smart-link, a[data-link-id]');
-                if (link) {
-                    e.preventDefault(); e.stopPropagation();
-                    showTooltip(link);
-                    const r = link.getBoundingClientRect();
-                    positionTooltip(r.left, r.bottom + 10);
-                } else {
-                    hideTooltip();
-                }
-            });
-
-            // Hide when scrolling or clicking away
-            elements.scrollContainer.addEventListener('scroll', hideTooltip);
-            document.body.addEventListener('click', (e) => {
-                if (!e.target.closest('.smart-link, a[data-link-id]')) hideTooltip();
-            }, true);
-        }
-
-        function loadEvent(li) {
-            const id = li.dataset.eventId;
-            elements.sidebar.querySelectorAll('li').forEach(l => l.classList.remove('active'));
-            li.classList.add('active');
-            elements.content.innerHTML = eventsCache[id] || '<p>المحتوى غير متوفر لهذه الصفحة.</p>';
-            elements.scrollContainer.scrollTop = 0;
-            elements.sidebarParent.classList.add('collapsed');
-            updateNavButtons();
-        }
-
-        function navigate(dir) {
-            const lis = Array.from(elements.sidebar.querySelectorAll('li[data-event-id]'));
-            const active = elements.sidebar.querySelector('li.active');
-            const idx = lis.indexOf(active);
-            const next = lis[idx + dir];
-            if (next) loadEvent(next);
-        }
-
-        function updateNavButtons() {
-            const lis = Array.from(elements.sidebar.querySelectorAll('li[data-event-id]'));
-            const active = elements.sidebar.querySelector('li.active');
-            const idx = lis.indexOf(active);
-            document.getElementById('prev-btn').disabled = (idx <= 0);
-            document.getElementById('next-btn').disabled = (idx >= lis.length - 1);
-        }
-
-        function showTooltip(link) {
-            const lid = link.dataset.linkId;
-            const txt = link.textContent.trim();
-            let data = tarajimData[lid];
-            if (!data) {
-                for (let k in tarajimData) {
-                    if (tarajimData[k].العنوان === txt || tarajimData[k].كلمة_مفتاحية === txt) {
-                        data = tarajimData[k]; break;
+    const dbManager = {
+        init() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains('data')) {
+                        db.createObjectStore('data');
                     }
-                }
-            }
-            if (!data) return;
-            let h = '';
-            if (data.صورة) h += `<img src="${data.صورة}">`;
-            if (data.العنوان) h += `<strong>${data.العنوان}</strong><br>`;
-            if (data.المحتوى || data.المحوى) h += data.المحتوى || data.المحوى;
-            elements.tooltipContent.innerHTML = h;
-            elements.tooltip.style.display = 'block';
+                };
+                request.onsuccess = (e) => { db = e.target.result; resolve(); };
+                request.onerror = (e) => reject(e);
+            });
+        },
+        async set(key, value) {
+            const tx = db.transaction('data', 'readwrite');
+            tx.objectStore('data').put(value, key);
+            return new Promise((res) => tx.oncomplete = res);
+        },
+        async get(key) {
+            const tx = db.transaction('data', 'readonly');
+            return new Promise((res) => {
+                const req = tx.objectStore('data').get(key);
+                req.onsuccess = () => res(req.result);
+            });
+        }
+    };
+
+    const elements = {
+        sidebar: document.getElementById('sidebar-data'),
+        content: document.getElementById('editable-content'),
+        tooltip: document.getElementById('smart-tooltip'),
+        tooltipContent: document.getElementById('tooltip-content'),
+        scrollContainer: document.querySelector('.scroll-container'),
+        sidebarParent: document.getElementById('sidebar'),
+        loader: document.getElementById('loader')
+    };
+
+    let eventsCache = {};
+    let tarajimData = {};
+    let currentMode = 'read';
+
+    async function init() {
+        await dbManager.init();
+        
+        const sidebarHtml = await dbManager.get('sidebar');
+        eventsCache = await dbManager.get('events') || {};
+        tarajimData = await dbManager.get('tarajim') || {};
+
+        if (sidebarHtml) {
+            elements.sidebar.innerHTML = sidebarHtml;
+            const first = elements.sidebar.querySelector('li[data-event-id]');
+            if (first) loadEvent(first);
         }
 
-        function positionTooltip(x, y) {
-            const offset = 15;
-            let finalX = x + offset;
-            let finalY = y + offset;
+        elements.loader.style.display = 'none';
+        bindEvents();
+    }
+
+    function bindEvents() {
+        document.getElementById('toggle-sidebar').onclick = (e) => {
+            e.stopPropagation();
+            elements.sidebarParent.classList.toggle('collapsed');
+        };
+
+        elements.sidebar.onclick = (e) => {
+            const li = e.target.closest('li[data-event-id]');
+            if (li) loadEvent(li);
+        };
+
+        elements.scrollContainer.onclick = (e) => {
+            if (currentMode === 'read' && !e.target.closest('.nav-btn')) {
+                elements.sidebarParent.classList.add('collapsed');
+            }
+        };
+
+        document.getElementById('next-btn').onclick = () => navigate(1);
+        document.getElementById('prev-btn').onclick = () => navigate(-1);
+
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.onclick = () => {
+                currentMode = btn.dataset.mode;
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                elements.content.contentEditable = (currentMode === 'edit');
+            };
+        });
+
+        document.getElementById('file-input').onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            elements.loader.style.display = 'flex';
+            document.getElementById('loader-text').innerText = 'جاري معالجة الملف الضخم وبناء المكتبة...';
+            
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                try {
+                    const b = JSON.parse(ev.target.result);
+                    if (b.sidebar) await dbManager.set('sidebar', b.sidebar);
+                    
+                    const evData = b.events || {};
+                    await dbManager.set('events', typeof evData === 'string' ? JSON.parse(evData) : evData);
+                    
+                    const tData = b.tarajim || b.links || {};
+                    await dbManager.set('tarajim', typeof tData === 'string' ? JSON.parse(tData) : tData);
+                    
+                    location.reload();
+                } catch (err) {
+                    alert('خطأ في قراءة الملف: ' + err.message);
+                    elements.loader.style.display = 'none';
+                }
+            };
+            reader.readAsText(file);
+        };
+
+        document.getElementById('export-btn').onclick = async () => {
+            const data = {
+                sidebar: await dbManager.get('sidebar'),
+                events: await dbManager.get('events'),
+                tarajim: await dbManager.get('tarajim')
+            };
+            const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'sira_backup_updated.json'; a.click();
+        };
+
+        // --- HYPER-ROBUST TOOLTIP LOGIC ---
+        let lastTouch = 0;
+        elements.content.addEventListener('pointerdown', (e) => {
+            if (currentMode !== 'read') return;
+            const link = e.target.closest('.smart-link, a[data-link-id]');
+            if (link) {
+                if (Date.now() - lastTouch < 100) return;
+                lastTouch = Date.now();
+                e.preventDefault(); e.stopPropagation();
+                showTooltipHyper(link, e.clientX, e.clientY);
+            } else {
+                hideTooltip();
+            }
+        });
+
+        elements.content.addEventListener('mousemove', (e) => {
+            if (currentMode !== 'read' || 'ontouchstart' in window) return;
+            const link = e.target.closest('.smart-link, a[data-link-id]');
+            if (link) showTooltipHyper(link, e.clientX, e.clientY);
+            else hideTooltip();
+        });
+
+        elements.scrollContainer.addEventListener('scroll', hideTooltip);
+        document.body.addEventListener('pointerdown', (e) => {
+            if (!e.target.closest('.smart-link, a[data-link-id]')) hideTooltip();
+        }, true);
+    }
+
+    function loadEvent(li) {
+        const id = li.dataset.eventId;
+        elements.sidebar.querySelectorAll('li').forEach(l => l.classList.remove('active'));
+        li.classList.add('active');
+        elements.content.innerHTML = eventsCache[id] || '<p>المحتوى غير متوفر لهذه الصفحة.</p>';
+        elements.scrollContainer.scrollTop = 0;
+        elements.sidebarParent.classList.add('collapsed');
+        updateNavButtons();
+    }
+
+    function navigate(dir) {
+        const lis = Array.from(elements.sidebar.querySelectorAll('li[data-event-id]'));
+        const active = elements.sidebar.querySelector('li.active');
+        const idx = lis.indexOf(active);
+        const next = lis[idx + dir];
+        if (next) loadEvent(next);
+    }
+
+    function updateNavButtons() {
+        const lis = Array.from(elements.sidebar.querySelectorAll('li[data-event-id]'));
+        const active = elements.sidebar.querySelector('li.active');
+        const idx = lis.indexOf(active);
+        document.getElementById('prev-btn').disabled = (idx <= 0);
+        document.getElementById('next-btn').disabled = (idx >= lis.length - 1);
+    }
+
+    function showTooltipHyper(link, x, y) {
+        const lid = link.dataset.linkId;
+        const txt = link.textContent.trim();
+        
+        let data = tarajimData[lid];
+        if (!data) {
+            for (let k in tarajimData) {
+                if (tarajimData[k].العنوان === txt || tarajimData[k].كلمة_مفتاحية === txt) {
+                    data = tarajimData[k]; break;
+                }
+            }
+        }
+        if (!data) {
+            for (let k in tarajimData) {
+                if (tarajimData[k].العنوان && tarajimData[k].العنوان.includes(txt)) {
+                    data = tarajimData[k]; break;
+                }
+            }
+        }
+        if (!data) return;
+
+        let h = '';
+        if (data.صورة) h += `<img src="${data.صورة}">`;
+        if (data.العنوان) h += `<strong style="color:var(--accent); display:block; margin-bottom:4px; font-family:Tajawal;">${data.العنوان}</strong>`;
+        if (data.المحتوى || data.المحوى) h += `<div style="font-size:0.95em; line-height:1.5;">${data.المحتوى || data.المحوى}</div>`;
+        
+        elements.tooltipContent.innerHTML = h;
+        elements.tooltip.style.display = 'block';
+
+        requestAnimationFrame(() => {
             const pW = elements.tooltip.offsetWidth || 280;
             const pH = elements.tooltip.offsetHeight || 100;
-            if (finalX + pW > window.innerWidth) finalX = window.innerWidth - pW - 10;
+            let finalX = x + 10;
+            let finalY = y + 10;
+            if (finalX + pW > window.innerWidth) finalX = window.innerWidth - pW - 15;
             if (finalY + pH > window.innerHeight) finalY = y - pH - 15;
             if (finalX < 10) finalX = 10;
+            if (finalY < 10) finalY = 10;
             elements.tooltip.style.left = finalX + 'px';
             elements.tooltip.style.top = finalY + 'px';
-        }
+            elements.tooltip.style.opacity = '1';
+        });
+    }
 
-        function hideTooltip() { elements.tooltip.style.display = 'none'; }
+    function hideTooltip() { 
+        elements.tooltip.style.display = 'none'; 
+        elements.tooltip.style.opacity = '0';
+    }
 
-        init();
+    init();
     </script>
 </body>
 
