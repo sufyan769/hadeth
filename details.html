@@ -6,7 +6,7 @@
     <title>تفاصيل الحديث</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch.umd.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;700&display=swap" rel="stylesheet">
@@ -292,14 +292,18 @@
         const renderHadith = async (hadith, id) => {
             document.title = `موسوعة الحديث - ${(hadith.text || '').substring(0, 50)}...`;
 
-            const categoriesHtml = (hadith.categories || '')
-                .split('|')
-                .flatMap(catGroup => catGroup.split(' - '))
-                .map(cat => cat.trim())
+            // Robust category processing
+            let categories = hadith.categories || [];
+            if (typeof categories === 'string') {
+                // Handle different separators: |, -, comma
+                categories = categories.split(/[|,\-،]/).map(c => c.trim());
+            }
+            
+            const categoriesHtml = categories
                 .filter(Boolean)
                 .map(cat =>
-                    `<a href="./category.html?q=${encodeURIComponent(cat)}" class="category-link">
-                        ${cat}
+                    `<a href="./category.html?q=${encodeURIComponent(cat)}" class="inline-block bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm border border-blue-100 hover:bg-blue-100 transition m-1">
+                        # ${cat}
                     </a>`
                 ).join('');
 
@@ -325,6 +329,11 @@
                 }
             }
             fullSharh = fullSharh.trim();
+            
+            // Fallback for single sharh field (Algolia)
+            if (!fullSharh && hadith.sharh) {
+                 fullSharh = String(hadith.sharh).replace(/\\n/g, '\n').replace(/([.,،])/g, '$1\n\n').trim();
+            }
 
             const contentHTML = `
                 <h1 class="text-3xl font-bold mb-4">الحديث النبوي</h1>
@@ -339,22 +348,43 @@
                     <div class="content-body">
                         <p class="text-stone-800 whitespace-pre-wrap font-bold text-xl mt-2 mb-8">${hadith.text || ''}</p>
                         
-                        <div class="action-buttons mb-8 flex items-center gap-2">
-                            <button id="copy-hadith-btn" class="action-button">نسخ</button>
-                            <button id="similar-search-btn" data-hadith-text="${sanitizeHTML(hadith.text || '')}" class="action-button">بحث عن المشابه</button>
+                        <div class="action-buttons mb-10 flex items-center gap-2">
+                            <button id="copy-hadith-btn" class="action-button bg-white border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded shadow-sm text-sm">نسخ</button>
+                            <button id="similar-search-btn" data-hadith-text="${sanitizeHTML(hadith.text || '')}" class="action-button bg-white border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded shadow-sm text-sm">بحث عن المشابه</button>
                         </div>
 
-                        ${fullSharh ? `
-                        <h2 class="text-2xl font-bold mt-10 mb-4">الشرح والتفسير</h2>
-                        <p class="text-stone-800 whitespace-pre-wrap">${fullSharh}</p>` : ''}
-                        
-                        <h2 class="text-2xl font-bold mt-10">أحاديث ذات صلة</h2>
-                        <div id="related-hadiths-container"></div>
-                        <div id="more-results-container" class="mt-4"></div>
-
                         ${categoriesHtml ? `
-                        <h3 class="text-xl font-bold mt-10">تصنيفات</h3>
-                        <div class="mt-2">${categoriesHtml}</div>` : ''}
+                        <div class="mb-10 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                            <h2 class="text-xl font-bold mb-3 flex items-center gap-2">
+                                <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path d="M17.707 9.293l-5-5a.999.999 0 00-1.414 0l-5 5A.999.999 0 107.707 10.707L11 7.414V17a1 1 0 102 0V7.414l3.293 3.293a.999.999 0 101.414-1.414z"></path></svg>
+                                التصنيفات الموضوعية
+                            </h2>
+                            <div class="flex flex-wrap">${categoriesHtml}</div>
+                        </div>` : ''}
+
+                        ${fullSharh ? `
+                        <div class="sharh-section mb-10">
+                            <h2 class="text-2xl font-bold mb-4 pb-2 border-b-2 border-blue-100 flex items-center gap-2">
+                                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                                الشرح والتفسير
+                            </h2>
+                            <div class="text-stone-800 whitespace-pre-wrap leading-loose text-lg">${fullSharh}</div>
+                        </div>` : ''}
+                        
+                        ${hadith.osoul ? `
+                        <div class="osoul-section mb-10 p-4 bg-amber-50 rounded-lg border border-amber-100">
+                            <h2 class="text-lg font-bold mb-2 text-amber-800">أصل الحديث</h2>
+                            <p class="text-stone-700 italic">${hadith.osoul}</p>
+                        </div>` : ''}
+                        
+                        <div class="mt-12">
+                            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 012-2M5 11V9a2 2 0 01-2-2m0 0V5a2 2 0 012-2h14a2 2 0 012 2v2M5 7h14"></path></svg>
+                                أحاديث ذات صلة
+                            </h2>
+                            <div id="related-hadiths-container"></div>
+                            <div id="more-results-container" class="mt-4"></div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -389,21 +419,57 @@
                 showError("لم يتم تحديد حديث.");
                 return;
             }
+
             try {
-                const response = await fetch(`${ORDS_API_BASE_URL}/${id}`);
-                if (!response.ok) throw new Error('Network response was not ok');
+                // --- Try Oracle ORDS ---
+                // We use a shorter timeout for the fetch to trigger fallback quickly if blocked
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3000);
+                
+                const response = await fetch(`${ORDS_API_BASE_URL}/${id}`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) throw new Error(`Oracle API error: ${response.status}`);
+                
                 const data = await response.json();
-                const hadith = data.items[0];
+                const hadith = data.items && data.items.length > 0 ? data.items[0] : (data.id ? data : null);
+                
                 if (hadith) {
+                    console.log("Hadith loaded from Oracle Cloud.");
                     currentHadithData = hadith;
                     await renderHadith(hadith, id);
-                } else {
-                    showError("لم يتم العثور على الحديث.");
+                    return;
                 }
             } catch (err) {
-                console.error("Failed to fetch hadith details:", err);
-                showError("حدث خطأ في جلب بيانات الحديث.");
+                console.warn("Oracle fetch failed or blocked by CORS, trying Algolia fallback:", err);
             }
+
+            // --- Try Algolia Fallback ---
+            try {
+                if (typeof algoliasearch !== 'undefined') {
+                    const client = algoliasearch(ALGOLIA_APP_ID, ALGOLIA_SEARCH_KEY);
+                    const index = client.initIndex(ALGOLIA_INDEX_NAME);
+                    
+                    // Use search with filters instead of getObject for maximal compatibility
+                    const { hits } = await index.search('', { 
+                        filters: `objectID:${id}`,
+                        hitsPerPage: 1 
+                    });
+                    
+                    const hadith = hits && hits.length > 0 ? hits[0] : null;
+                    
+                    if (hadith) {
+                        console.log("Hadith loaded from Algolia Fallback.");
+                        currentHadithData = hadith;
+                        await renderHadith(hadith, id);
+                        return;
+                    }
+                }
+            } catch (algoliaErr) {
+                console.error("Algolia fallback also failed:", algoliaErr);
+            }
+
+            showError("تعذر جلب بيانات الحديث. تأكد من الرمز أو حاول لاحقاً.");
         };
 
         // --- EVENT LISTENERS ---
